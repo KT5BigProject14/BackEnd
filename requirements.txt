@@ -1,0 +1,23 @@
+uvicorn[standard]
+fastapi==0.111.0
+python-multipart
+passlib[bcrypt]==1.7.4
+tenacity==8.2.3
+pydantic
+gunicorn==22.0.0
+alembic
+httpx
+pymysql==1.0.2
+sqlmodel
+bcrypt==4.0.1
+pydantic-settings
+sentry-sdk[fastapi]==1.40.6
+pyjwt==2.8.0
+cryptography
+# Dev dependencies
+pytest==7.4.3
+mypy==1.8.0
+ruff==0.2.2
+pre-commit==3.6.2
+types-passlib==1.7.7.20240106
+coverage==7.4.3
