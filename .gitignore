@@ -1,2 +1,6 @@
-alembic.ini
-migrate
+alembic.ini/
+migrate/
+# Python specific
+__pycache__/
+*.pyc
+.env/

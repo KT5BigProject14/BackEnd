@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List
 from models import Base, User as UserModel, UserInfo as UserInfoModel
 from core.database import engine, get_db
-from crud import create_user_db, create_user_info_db, get_user, get_users
+from crud import create_user_db, create_user_info_db, get_user, get_users, authenticate_user
 from schemas import User, UserCreate, UserInfo, UserInfoCreate
 
 app = FastAPI()
@@ -19,6 +19,10 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
         raise HTTPException(
             status_code=400, detail="User ID already registered")
     return create_user_db(db=db, user=user)
+
+@app.post("/users/login", response_model=User)
+def login_user(user: User, db: Session = Depends(get_db)):
+    return authenticate_user(db=db, user=user)
 
 
 @app.get("/users/", response_model=List[User])  # 여기에서 List를 사용
