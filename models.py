@@ -7,7 +7,7 @@ Base = declarative_base()
 
 class User(Base):
     __tablename__ = 'users'
-    email = Column(String(255), primary_key=True, index=True)
+    user_id = Column(String(255), primary_key=True, index=True)
     password = Column(String(255))
     user_info = relationship("UserInfo", back_populates="user")
     chats = relationship("Chat", back_populates="user")
@@ -18,8 +18,10 @@ class User(Base):
 
 class UserInfo(Base):
     __tablename__ = 'user_info'
-    email = Column(String(255), ForeignKey(
-        'users.email'), primary_key=True, index=True)
+    user_id = Column(String(255), ForeignKey(
+        'users.user_id'), primary_key=True, index=True)
+    name = Column(String(255), index=True)
+    email = Column(String(255), unique=True, index=True)
     phone = Column(String(20))
     corporation = Column(String(255))
     business_number = Column(Integer)
