@@ -7,7 +7,7 @@ Base = declarative_base()
 
 class User(Base):
     __tablename__ = 'users'
-    user_id = Column(String(255), primary_key=True, index=True)
+    email = Column(String(255), primary_key=True, index=True)
     password = Column(String(255))
     user_info = relationship("UserInfo", back_populates="user")
     chats = relationship("Chat", back_populates="user")
@@ -18,10 +18,8 @@ class User(Base):
 
 class UserInfo(Base):
     __tablename__ = 'user_info'
-    user_id = Column(String(255), ForeignKey(
-        'users.user_id'), primary_key=True, index=True)
-    name = Column(String(255), index=True)
-    email = Column(String(255), unique=True, index=True)
+    email = Column(String(255), ForeignKey(
+        'users.email'), primary_key=True, index=True)
     phone = Column(String(20))
     corporation = Column(String(255))
     business_number = Column(Integer)
@@ -60,7 +58,7 @@ class Chat(Base):
     __tablename__ = 'chat'
     chat_id = Column(String(255), primary_key=True, index=True)
     Field6 = Column(String(255))
-    user_id = Column(String(255), ForeignKey('users.user_id'), nullable=False)
+    email = Column(String(255), ForeignKey('users.email'), nullable=False)
     content = Column(String(255))
     created_at = Column(String(255))
     user = relationship("User", back_populates="chats")
@@ -75,7 +73,7 @@ class FAQ(Base):
 class Board(Base):
     __tablename__ = 'board'
     board_id = Column(String(255), primary_key=True, index=True)
-    user_id = Column(String(255), ForeignKey('users.user_id'), nullable=False)
+    email = Column(String(255), ForeignKey('users.email'), nullable=False)
     title = Column(String(255))
     content = Column(String(255))
     created_at = Column(String(255))
@@ -88,7 +86,7 @@ class Comment(Base):
     reply_id = Column(String(255), primary_key=True, index=True)
     board_id = Column(String(255), ForeignKey(
         'board.board_id'), nullable=False)
-    user_id = Column(String(255), ForeignKey('users.user_id'), nullable=False)
+    email = Column(String(255), ForeignKey('users.email'), nullable=False)
     content = Column(String(255))
     created_at = Column(String(255))
     board = relationship("Board", back_populates="comments")
@@ -98,6 +96,6 @@ class Comment(Base):
 class Keyword(Base):
     __tablename__ = 'keyword'
     keyword_id = Column(String(255), primary_key=True, index=True)
-    user_id = Column(String(255), ForeignKey('users.user_id'), nullable=False)
+    email = Column(String(255), ForeignKey('users.email'), nullable=False)
     keyword = Column(String(255))
     user = relationship("User", back_populates="keywords")

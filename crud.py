@@ -4,7 +4,7 @@ from schemas import UserCreate, UserInfoCreate, User as UserSchema
 
 
 def create_user_db(db: Session, user: UserCreate):
-    db_user = UserModel(user_id=user.user_id, password=user.password)
+    db_user = UserModel(email=user.email, password=user.password)
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
@@ -19,8 +19,8 @@ def create_user_info_db(db: Session, user_info: UserInfoCreate):
     return db_user_info
 
 
-def get_user(db: Session, user_id: str):
-    return db.query(UserModel).filter(UserModel.user_id == user_id).first()
+def get_user(db: Session, email: str):
+    return db.query(UserModel).filter(UserModel.email == email).first()
 
 
 def get_users(db: Session, skip: int = 0, limit: int = 10):
