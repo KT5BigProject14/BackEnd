@@ -11,8 +11,8 @@ class UserCreate(UserBase):
 
 
 class User(UserBase):
-    class Config:
-        orm_mode = True
+    password: str
+
 
 
 class UserInfoBase(BaseModel):
