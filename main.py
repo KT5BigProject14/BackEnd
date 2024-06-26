@@ -14,7 +14,7 @@ Base.metadata.create_all(bind=engine)
 
 @app.post("/users/", response_model=User)
 def create_user(user: UserCreate, db: Session = Depends(get_db)):
-    db_user = get_user(db, user.user_id)
+    db_user = get_user(db, user.email)
     if db_user:
         raise HTTPException(
             status_code=400, detail="User ID already registered")

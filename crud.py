@@ -1,10 +1,12 @@
 from sqlalchemy.orm import Session
 from models import User as UserModel, UserInfo as UserInfoModel
 from schemas import UserCreate, UserInfoCreate, User as UserSchema
-
-
+from passlib.context import CryptContext
+bcrypt_context = CryptContext(schemes=['bcrypt'], deprecated = 'auto')
 def create_user_db(db: Session, user: UserCreate):
-    db_user = UserModel(email=user.email, password=user.password)
+    hashed_password = bcrypt_context.hash(user.password)
+    
+    db_user = UserModel(email=user.email, password=hashed_password)
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
