@@ -16,7 +16,6 @@ class User(UserBase):
 
 
 class UserInfoBase(BaseModel):
-    name: str
     email: EmailStr
     phone: Optional[str] = None
     corporation: Optional[str] = None
