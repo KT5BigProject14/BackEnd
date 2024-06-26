@@ -3,8 +3,9 @@ from sqlalchemy.orm import Session
 from typing import List
 from models import Base, User as UserModel, UserInfo as UserInfoModel
 from core.database import engine, get_db
-from crud import create_user_db, create_user_info_db, get_user, get_users, authenticate_user
+from crud.login_crud import create_user_db, create_user_info_db, get_user, get_users, authenticate_user
 from schemas import User, UserCreate, UserInfo, UserInfoCreate
+
 
 app = FastAPI()
 
@@ -12,45 +13,38 @@ app = FastAPI()
 Base.metadata.create_all(bind=engine)
 
 
-@app.post("/users/", response_model=User)
-def create_user(user: UserCreate, db: Session = Depends(get_db)):
-    db_user = get_user(db, user.email)
-    if db_user:
-        raise HTTPException(
-            status_code=400, detail="User ID already registered")
-    return create_user_db(db=db, user=user)
+import sentry_sdk
+from fastapi import FastAPI
+from fastapi.routing import APIRoute
+from starlette.middleware.cors import CORSMiddleware
 
-@app.post("/users/login", response_model=User)
-def login_user(user: User, db: Session = Depends(get_db)):
-    return authenticate_user(db=db, user=user)
+from api.main import api_router
+from core.config import settings
 
 
-@app.get("/users/", response_model=List[User])  # 여기에서 List를 사용
-def read_users(skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
-    users = get_users(db, skip=skip, limit=limit)
-    return users
+def custom_generate_unique_id(route: APIRoute) -> str:
+    return f"{route.tags[0]}-{route.name}"
 
 
-@app.get("/users/{user_id}", response_model=User)
-def read_user(user_id: str, db: Session = Depends(get_db)):
-    db_user = get_user(db, user_id=user_id)
-    if db_user is None:
-        raise HTTPException(status_code=404, detail="User not found")
-    return db_user
+# if settings.SENTRY_DSN and settings.ENVIRONMENT != "local":
+#     sentry_sdk.init(dsn=str(settings.SENTRY_DSN), enable_tracing=True)
 
+app = FastAPI(
+    title=settings.PROJECT_NAME,
+    openapi_url=f"{settings.API_V1_STR}/openapi.json",
+    generate_unique_id_function=custom_generate_unique_id,
+)
 
-@app.post("/user_info/", response_model=UserInfo)
-def create_user_info(user_info: UserInfoCreate, db: Session = Depends(get_db)):
-    db_user = get_user(db, user_info.user_id)
-    if db_user is None:
-        raise HTTPException(status_code=404, detail="User not found")
-    return create_user_info_db(db=db, user_info=user_info)
+# Set all CORS enabled origins
+if settings.BACKEND_CORS_ORIGINS:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[
+            str(origin).strip("/") for origin in settings.BACKEND_CORS_ORIGINS
+        ],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
-
-@app.get("/user_info/{user_id}", response_model=UserInfo)
-def read_user_info(user_id: str, db: Session = Depends(get_db)):
-    db_user_info = db.query(UserInfoModel).filter(
-        UserInfoModel.user_id == user_id).first()
-    if db_user_info is None:
-        raise HTTPException(status_code=404, detail="User Info not found")
-    return db_user_info
+app.include_router(api_router, prefix=settings.API_V1_STR)

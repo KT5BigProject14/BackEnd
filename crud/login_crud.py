@@ -5,6 +5,7 @@ from passlib.context import CryptContext
 from fastapi import FastAPI, Depends, HTTPException
 
 bcrypt_context = CryptContext(schemes=['bcrypt'], deprecated = 'auto')
+
 def create_user_db(db: Session, user: UserCreate):
     hashed_password = bcrypt_context.hash(user.password)
     
