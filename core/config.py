@@ -30,6 +30,12 @@ class Settings(BaseSettings):
     PROJECT_NAME: str
     # SENTRY_DSN: Optional[str] = None
     ENVIRONMENT: str  # ENVIRONMENT 속성 추가
+    ACCESS_TOKEN_EXPIRE_TIME: int
+    REFRESH_TOKEN_EXPIRE_TIME: int
+    ALGORITHM:str
+    SECRET_KEY:str
+    EMAIL_ADDR : str  
+    EMAIL_PW : str
 
     def _check_default_secret(self, var_name: str, value: str | None) -> None:
         if value == "changethis":
