@@ -23,3 +23,4 @@ types-passlib==1.7.7.20240106
 coverage==7.4.3
 python-jose
 yagmail
+aioredis==2.0.0
