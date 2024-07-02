@@ -24,3 +24,5 @@ coverage==7.4.3
 python-jose
 yagmail
 aioredis==2.0.0
+redis
+aiosmtplib
