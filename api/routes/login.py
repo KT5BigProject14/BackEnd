@@ -53,7 +53,7 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
 @router.post("/users/login")
 async def login_user(user: User, db: Session = Depends(get_db)):
     user_id  = authenticate_user(db=db, user=user)
-    data = {"id":str(user_id)}
+    data = {"email":str(user_id.email)}
     access_token = jwt_service.create_access_token(data)
     refresh_token = jwt_service.create_refresh_token(data)
     response = JSONResponse(content={"detail":"login sucess"}, status_code=status.HTTP_200_OK)

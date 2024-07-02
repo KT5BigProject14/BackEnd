@@ -34,7 +34,8 @@ def get_users(db: Session, skip: int = 0, limit: int = 10):
 def authenticate_user(db: Session, user:User ):
     find_user = db.query(UserModel).filter(UserModel.email == user.email).first()
     if not find_user:
-        return None  # 사용자가 존재하지 않음
+        raise HTTPException(
+            status_code=404, detail="해당 아이디의 유저가 없습니다.")  # 사용자가 존재하지 않음
     
     if not bcrypt_context.verify(user.password, find_user.password):
         raise HTTPException(
