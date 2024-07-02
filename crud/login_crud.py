@@ -1,23 +1,24 @@
 from sqlalchemy.orm import Session
-from models import User as UserModel, UserInfo as UserInfoModel , emailAuth
-from schemas import UserCreate , UserInfoCreate, User, UserBase, SendEmail, CheckEmail, CheckCode
+from models import User as UserModel, UserInfo as UserInfoModel , emailAuth 
+from schemas import UserCreate , UserInfoCreate, User, UserBase, SendEmail, CheckEmail, CheckCode , UserInfoBase
 from passlib.context import CryptContext
 from fastapi import FastAPI, Depends, HTTPException
 
 bcrypt_context = CryptContext(schemes=['bcrypt'], deprecated = 'auto')
 
-def create_user_db(db: Session, user: UserCreate):
+def create_user_db(db: Session, user: UserBase):
     hashed_password = bcrypt_context.hash(user.password)
     
-    db_user = UserModel(email=user.email, password=hashed_password)
+    db_user = UserModel(email=user.email, password=hashed_password, user_name = user.user_name)
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
     return db_user
 
 
-def create_user_info_db(db: Session, user_info: UserInfoCreate):
-    db_user_info = UserInfoModel(**user_info.dict())
+def create_user_info_db(db: Session, user_info: UserInfoBase):
+    db_user_info = UserInfoModel(email = user_info.email, corporation = user_info.corporation, business_number = user_info.business_number, 
+                                 position =user_info.position, phone = user_info.phone)
     db.add(db_user_info)
     db.commit()
     db.refresh(db_user_info)
@@ -73,5 +74,6 @@ def update_is_active(db: Session, user: UserCreate):
     email_auth_db.is_active = True
     db.commit()
     db.refresh(email_auth_db)
+
     
     

@@ -41,14 +41,20 @@ jwt_service = JWTService(JWTEncoder(),JWTDecoder(),settings.ALGORITHM,settings.S
 #     # db 작업 부분으로 보내는 코드
 #     return crud에서_선언한_함수이름(db=db, crud에_선언한_인자_이름=crud로_보낼_데이터(프론트에서 가져온 데이터))
 
-@router.post("/users/signup", response_model=User)
+
+# email, 이름, 비번
+#회사명, 회사번호, 직책, 전화번호
+
+@router.post("/users/signup")
 def create_user(user: UserCreate, db: Session = Depends(get_db)):
     db_user = get_user(db, user.email)
     if db_user:
         raise HTTPException(
             status_code=400, detail="User ID already registered")
     update_is_active(db,user)
-    return create_user_db(db=db, user=user)
+    create_user_db(db=db, user=user)
+    create_user_info_db(db= db, user_info = user)
+    return HTTPException(status_code=200,detail="signup success")
 
 @router.post("/users/login")
 async def login_user(user: User, db: Session = Depends(get_db)):
