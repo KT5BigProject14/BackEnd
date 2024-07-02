@@ -8,10 +8,15 @@ from typing import List
 from pydantic import Field
 class UserBase(BaseModel):
     email: EmailStr
+    password: str
+    user_name: str
 
 
 class UserCreate(UserBase):
-    password: str
+    corporation : str
+    business_number : int
+    position: str
+    phone : str
 
 
 class User(UserBase):
@@ -20,10 +25,10 @@ class User(UserBase):
 
 
 class UserInfoBase(BaseModel):
-    email: EmailStr
-    phone: Optional[str] = None
-    corporation: Optional[str] = None
-    business_number: Optional[int] = None
+    corporation : str
+    business_number : int
+    position: str
+    phone : str
 
 
 class UserInfoCreate(UserInfoBase):

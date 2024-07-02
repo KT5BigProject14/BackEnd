@@ -12,6 +12,7 @@ class User(Base):
     user_id = Column(Integer, primary_key=True, index=True)
     email = Column(String(255),unique=True, index=True)
     password = Column(String(255))
+    user_name  = Column(String(255), index=True)
     user_info = relationship("UserInfo", back_populates="user")
     chats = relationship("Chat", back_populates="user")
     boards = relationship("Board", back_populates="user")
@@ -24,7 +25,7 @@ class UserInfo(Base):
     user_info_id = Column(Integer, primary_key=True, index=True)
     email = Column(String(255), ForeignKey(
         'users.email'), unique=True, index=True)
-    name = Column(String(255), index=True)
+    position = Column(String(100))
     phone = Column(String(20))
     corporation = Column(String(255))
     business_number = Column(Integer)
