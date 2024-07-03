@@ -19,12 +19,17 @@ class UserCreate(UserBase):
     phone : str
 
 
-class User(UserBase):
+class User(BaseModel):
+    email: EmailStr
     password: str
 
+class JwtUser(BaseModel):
+    email: EmailStr
+    exp: str
 
 
 class UserInfoBase(BaseModel):
+    email: EmailStr
     corporation : str
     business_number : int
     position: str
@@ -40,7 +45,7 @@ class UserInfo(UserInfoBase):
         orm_mode = True
 
 # jwt encoder 추상 클래스
-class AbstaractEecoder(ABC):
+class AbstractEecoder(ABC):
     @abstractmethod
     def encode(
         self, data:dict, expires_delta: int , secret_key:str, algorithm: str
@@ -48,27 +53,27 @@ class AbstaractEecoder(ABC):
         pass
 
 # jwt encoder 구현 클래스
-class JWTEncoder(AbstaractEecoder):
+class JWTEncoder(AbstractEecoder):
     def encode(
         self, data:dict, expires_delta: int, secret_key:str, algorithm: str
     ) -> str:
         to_encode = data.copy()
         expire = datetime.now(ZoneInfo("Asia/Seoul")) + timedelta(minutes= expires_delta)
         to_encode.update({"exp":expire})
-        return jwt.encode(to_encode,secret_key,algorithm=algorithm)
+        return jwt.encode(to_encode,key = secret_key,algorithm=algorithm)
 
 # jwt decoder 추상 클래스
-class AbstaractDecoder(ABC):
+class AbstractDecoder(ABC):
     @abstractmethod
     def decode(self, token:str, secret_key:str, algorithm: str) -> dict | None:
         pass
 
 # jwt decoder 구현 클래스
-class JWTDecoder(AbstaractDecoder):
+class JWTDecoder(AbstractDecoder):
     def decode(
         self, token:str,secret_key:str, algorithm: str) -> dict | None:
         try:
-            return jwt.decode(token, secret_key,algorithms=[algorithm])
+            return jwt.decode(token, key = secret_key,algorithms=algorithm)
         except JWTError:
             return None
             
