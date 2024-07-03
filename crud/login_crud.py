@@ -45,7 +45,7 @@ def authenticate_user(db: Session, user:User ):
     # return UserBase(email=find_user.email) 
     # login.py에 basemodel 이 없기 때문에 아래와 같은 형식으로 return
     # find_user
-    return UserBase(email=find_user.email)  # 인증된 사용자 객체 반환
+    return find_user  # 인증된 사용자 객체 반환
 
 def email_auth(db: Session, user: CheckEmail):
     find_user = db.query(emailAuth).filter(emailAuth.email == user.email).first()

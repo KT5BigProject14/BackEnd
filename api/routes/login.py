@@ -25,10 +25,8 @@ import aiosmtplib
 from datetime import datetime, timedelta
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-
-
+from api.deps import JWTAuthentication
 # from models import MessageOk, SendEmail
-
 # import boto3
 # from botocore.exceptions import ClientError
 
@@ -62,14 +60,7 @@ async def login_user(user: User, db: Session = Depends(get_db)):
     data = {"email":str(user_id.email)}
     access_token = jwt_service.create_access_token(data)
     refresh_token = jwt_service.create_refresh_token(data)
-    response = JSONResponse(content={"detail":"login sucess"}, status_code=status.HTTP_200_OK)
-    response.set_cookie(
-        key="access_token", # 쿠키 이름
-        value=access_token, # 쿠키 값
-        httponly=True, # 자바스크립트 접근 불가능하게 하여 쿠키 조작 방지
-        # secure=True, # https만 쿠키 전송
-        samesite='none', # 모든 크로스 사이트에 대한 쿠기 사용 허가(프,백 분리 환경에서 일반적으로 사용)
-    )
+    response = JSONResponse(content={"access_token":access_token}, status_code=status.HTTP_200_OK)
     response.set_cookie(
         key="refresh_token",
         value=refresh_token,
@@ -193,11 +184,9 @@ async def send_email(**kwargs):
     except Exception as e:
         print(e)
 
-@router.post("/users/loout")
+@router.post("/users/logout")
 async def logout_user(response: Response, request: Request):
-    access_token = request.cookies.get("access_token")
     refresh_token = request.cookies.get("refresh_token")
-    response.delete_cookie(key="access_token")
     response.delete_cookie(key="refresh_token")
     return HTTPException(status_code=status.HTTP_200_OK, detail="Logout successful")
 
@@ -215,19 +204,3 @@ def read_user(email: str, db: Session = Depends(get_db)):
     return db_user
 
 
-@router.post("/user_info/", response_model=UserInfo)
-def create_user_info(user_info: UserInfoCreate, db: Session = Depends(get_db)):
-    db_user = get_user(db, user_info.email)
-    if db_user is None:
-        raise HTTPException(status_code=404, detail="User not found")
-    return create_user_info_db(db=db, user_info=user_info)
-
-
-@router.get("/user_info/{email}", response_model=UserInfo)
-def read_user_info(email: str, db: Session = Depends(get_db)):
-    db_user_info = db.query(UserInfoModel).filter(
-        UserInfoModel.email == email).first()
-    if db_user_info is None:
-        raise HTTPException(status_code=404, detail="User Info not found")
-    return db_user_info
-    
