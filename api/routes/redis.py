@@ -2,12 +2,12 @@ from fastapi import FastAPI, HTTPException, APIRouter
 from pydantic import BaseModel
 from core.redis_config import redis_conn
 import uuid
-
+from typing import Optional
 router = APIRouter()
 
 class Message(BaseModel):
     user_email: str
-    session_id: str
+    session_id: Optional[str] = None
     message: str
 
 # 유저의 대화내용 저장

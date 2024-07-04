@@ -36,7 +36,9 @@ class Settings(BaseSettings):
     SECRET_KEY:str
     EMAIL_ADDR : str  
     EMAIL_PW : str
-
+    AWS_ACCESS_KEY : str
+    AWS_SECRET_KEY: str
+    REGIONE_NAME : str
     def _check_default_secret(self, var_name: str, value: str | None) -> None:
         if value == "changethis":
             message = (
