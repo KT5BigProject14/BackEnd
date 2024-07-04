@@ -33,6 +33,8 @@ from api.deps import JWTAuthentication
 
 router = APIRouter()
 jwt_service = JWTService(JWTEncoder(),JWTDecoder(),settings.ALGORITHM,settings.SECRET_KEY,settings.ACCESS_TOKEN_EXPIRE_TIME,settings.REFRESH_TOKEN_EXPIRE_TIME)
+get_current_user = JWTAuthentication(jwt_service)
+GetCurrentUser = Annotated[User, Depends(get_current_user)]
 # 함수 예시 
 # @router.get,post중 선택("들어오는 url", response_model="schemas에 정의 된 json데이터의 구조 프론트로 return할 때 사용")
 # def 기능에_맞는_함수_이름(변수: schema에_정의된_프론트에서_인풋으로_받은_json_구조, db: Session = Depends(get_db)):

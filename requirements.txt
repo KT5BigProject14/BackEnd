@@ -26,3 +26,5 @@ yagmail
 aioredis==2.0.0
 redis
 aiosmtplib
+boto3
+pillow

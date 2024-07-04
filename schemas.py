@@ -42,7 +42,7 @@ class UserInfoCreate(UserInfoBase):
 
 class UserInfo(UserInfoBase):
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 # jwt encoder 추상 클래스
 class AbstractEecoder(ABC):
@@ -89,3 +89,12 @@ class CheckEmail(SendEmail):
     
 class CheckCode(SendEmail):
     verify_code : str
+    
+    
+class Qna(BaseModel):
+    email: EmailStr
+    title: str
+    content: str
+
+    class Config:
+        from_attributes = True
