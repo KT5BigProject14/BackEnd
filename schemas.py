@@ -1,11 +1,14 @@
-from pydantic import BaseModel, EmailStr
-from typing import Optional
+from pydantic import BaseModel, EmailStr, AnyHttpUrl
+from pydantic_settings import BaseSettings
+from typing import Optional, List, Union
 from abc import ABC, abstractmethod
-from datetime import datetime,timedelta
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from jose import jwt, JWTError
 from typing import List
 from pydantic import Field
+
+
 class UserBase(BaseModel):
     email: EmailStr
     password: str
@@ -13,15 +16,16 @@ class UserBase(BaseModel):
 
 
 class UserCreate(UserBase):
-    corporation : str
-    business_number : int
+    corporation: str
+    business_number: int
     position: str
-    phone : str
+    phone: str
 
 
 class User(BaseModel):
     email: EmailStr
     password: str
+
 
 class JwtUser(BaseModel):
     email: EmailStr
@@ -30,10 +34,10 @@ class JwtUser(BaseModel):
 
 class UserInfoBase(BaseModel):
     email: EmailStr
-    corporation : str
-    business_number : int
+    corporation: str
+    business_number: int
     position: str
-    phone : str
+    phone: str
 
 
 class UserInfoCreate(UserInfoBase):
@@ -45,52 +49,65 @@ class UserInfo(UserInfoBase):
         from_attributes = True
 
 # jwt encoder 추상 클래스
+
+
 class AbstractEecoder(ABC):
     @abstractmethod
     def encode(
-        self, data:dict, expires_delta: int , secret_key:str, algorithm: str
+        self, data: dict, expires_delta: int, secret_key: str, algorithm: str
     ) -> str:
         pass
 
 # jwt encoder 구현 클래스
+
+
 class JWTEncoder(AbstractEecoder):
     def encode(
-        self, data:dict, expires_delta: int, secret_key:str, algorithm: str
+        self, data: dict, expires_delta: int, secret_key: str, algorithm: str
     ) -> str:
         to_encode = data.copy()
-        expire = datetime.now(ZoneInfo("Asia/Seoul")) + timedelta(minutes= expires_delta)
-        to_encode.update({"exp":expire})
-        return jwt.encode(to_encode,key = secret_key,algorithm=algorithm)
+        expire = datetime.now(ZoneInfo("Asia/Seoul")) + \
+            timedelta(minutes=expires_delta)
+        to_encode.update({"exp": expire})
+        return jwt.encode(to_encode, key=secret_key, algorithm=algorithm)
 
 # jwt decoder 추상 클래스
+
+
 class AbstractDecoder(ABC):
     @abstractmethod
-    def decode(self, token:str, secret_key:str, algorithm: str) -> dict | None:
+    def decode(self, token: str, secret_key: str, algorithm: str) -> dict | None:
         pass
 
 # jwt decoder 구현 클래스
+
+
 class JWTDecoder(AbstractDecoder):
     def decode(
-        self, token:str,secret_key:str, algorithm: str) -> dict | None:
+            self, token: str, secret_key: str, algorithm: str) -> dict | None:
         try:
-            return jwt.decode(token, key = secret_key,algorithms=algorithm)
+            return jwt.decode(token, key=secret_key, algorithms=algorithm)
         except JWTError:
             return None
-            
+
+
 class SendEmail(BaseModel):
     name: str
     email: EmailStr
-    
+
+
 class MessageOk(BaseModel):
     message: str = Field(default="OK")
-    
+
+
 class CheckEmail(SendEmail):
-    is_active : bool | None
-    
+    is_active: bool | None
+
+
 class CheckCode(SendEmail):
-    verify_code : str
-    
-    
+    verify_code: str
+
+
 class Qna(BaseModel):
     email: EmailStr
     title: str
@@ -98,3 +115,12 @@ class Qna(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class Settings(BaseSettings):
+    PROJECT_NAME: str = "My FastAPI Project"
+    API_V1_STR: str = "/api/v1"
+    BACKEND_CORS_ORIGINS: Union[str, List[AnyHttpUrl]] = ["*"]
+
+    class Config:
+        case_sensitive = True

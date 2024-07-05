@@ -11,12 +11,14 @@ from pydantic import (
     model_validator,
 )
 
+
 def parse_cors(v: Any) -> list[str] | str:
     if isinstance(v, str) and not v.startswith("["):
         return [i.strip() for i in v.split(",")]
     elif isinstance(v, list | str):
         return v
     raise ValueError(v)
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -32,13 +34,17 @@ class Settings(BaseSettings):
     ENVIRONMENT: str  # ENVIRONMENT 속성 추가
     ACCESS_TOKEN_EXPIRE_TIME: int
     REFRESH_TOKEN_EXPIRE_TIME: int
-    ALGORITHM:str
-    SECRET_KEY:str
-    EMAIL_ADDR : str  
-    EMAIL_PW : str
-    AWS_ACCESS_KEY : str
+    ALGORITHM: str
+    SECRET_KEY: str
+    EMAIL_ADDR: str
+    EMAIL_PW: str
+    AWS_ACCESS_KEY: str
     AWS_SECRET_KEY: str
-    REGIONE_NAME : str
+    REGIONE_NAME: str
+    PROJECT_NAME: str = "My FastAPI Project"
+    API_V1_STR: str = "/api/v1"
+    BACKEND_CORS_ORIGINS: list = ["*"]
+
     def _check_default_secret(self, var_name: str, value: str | None) -> None:
         if value == "changethis":
             message = (
@@ -48,6 +54,7 @@ class Settings(BaseSettings):
             if self.ENVIRONMENT == "local":
                 warnings.warn(message, stacklevel=1)
             else:
-                raise ValueError(message)    
+                raise ValueError(message)
+
 
 settings = Settings()
