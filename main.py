@@ -49,7 +49,3 @@ if settings.BACKEND_CORS_ORIGINS:
 
 # api_router를 애플리케이션에 포함하여 모든 API 엔드포인트를 등록
 app.include_router(api_router, prefix=settings.API_V1_STR)
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="localhost", port=8000)
