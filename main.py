@@ -35,13 +35,11 @@ app = FastAPI(
 # Set all CORS enabled origins
 # 미들웨어를 추가하여 지정된 원본에서 오는 요청을 허용
 if settings.BACKEND_CORS_ORIGINS:
-    origins = settings.BACKEND_CORS_ORIGINS
-    if isinstance(origins, str):
-        origins = [origin.strip() for origin in origins.split(",")]
-
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=origins,
+        allow_origins=[
+            str(origin).strip("/") for origin in settings.BACKEND_CORS_ORIGINS
+        ],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

@@ -16,7 +16,7 @@ langserve_url = "http://localhost:8080/chain"
 async def generate_search_title(question:str):
     try:
         # 랭서브로 요청 보내기
-        response = requests.post(langserve_url+"/search/title", json={"question": question})
+        response = requests.post(langserve_url+"/generate/title", json={"question": question})
         response.raise_for_status()
         
         # 랭서브로부터 결과 받기
@@ -30,7 +30,7 @@ async def generate_search_title(question:str):
 async def generate_search_text(title:str):
     try:
         # 랭서브로 요청 보내기
-        response = requests.post(langserve_url+"/text", json={"title": title})
+        response = requests.post(langserve_url+"/generate/text", json={"title": title})
         response.raise_for_status()
         
         # 랭서브로부터 결과 받기
