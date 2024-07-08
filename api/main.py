@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from api.routes import login, news, redis, user_info, qna, rag_pipeline
+from api.routes import ai, login, news, redis, user_info, qna, rag_pipeline
 
 api_router = APIRouter()
 
@@ -14,3 +14,4 @@ api_router.include_router(
 api_router.include_router(qna.router, prefix="/qna", tags=["qna"])
 api_router.include_router(
     rag_pipeline.router, prefix="/rag_pipeline", tags=["rag_pipeline"])
+api_router.include_router(ai.router,prefix="/ai",tags=["ai"])
