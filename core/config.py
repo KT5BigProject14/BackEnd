@@ -41,9 +41,9 @@ class Settings(BaseSettings):
     AWS_ACCESS_KEY: str
     AWS_SECRET_KEY: str
     REGIONE_NAME: str
-    PROJECT_NAME: str = "My FastAPI Project"
-    API_V1_STR: str = "/api/v1"
-    BACKEND_CORS_ORIGINS: list = ["*"]
+    # PROJECT_NAME: str = "My FastAPI Project"
+    # API_V1_STR: str = "/api/v1"
+    # BACKEND_CORS_ORIGINS: list = ["*"]
 
     def _check_default_secret(self, var_name: str, value: str | None) -> None:
         if value == "changethis":

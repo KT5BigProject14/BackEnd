@@ -2,14 +2,14 @@ uvicorn[standard]
 fastapi==0.111.0
 python-multipart
 passlib[bcrypt]==1.7.4
-tenacity==8.2.3
+# tenacity==8.2.3
 pydantic
 gunicorn==22.0.0
 alembic
 httpx
 pymysql==1.0.2
 sqlmodel
-bcrypt==4.0.1
+# bcrypt==4.0.1
 pydantic-settings
 sentry-sdk[fastapi]==1.40.6
 pyjwt==2.8.0
