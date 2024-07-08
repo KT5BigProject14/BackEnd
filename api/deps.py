@@ -10,11 +10,6 @@ from models import User  # User 모델을 import
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from crud import login_crud  # user_repository 모듈을 import
-from RAGPipeLine import Ragpipeline
-
-
-def get_rag_pipeline():
-    return Ragpipeline()
 
 
 class JWTService:

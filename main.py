@@ -11,17 +11,16 @@ from core.database import engine, get_db
 from crud.login_crud import create_user_db, create_user_info_db, get_user, get_users, authenticate_user
 from schemas import User, UserCreate, UserInfo, UserInfoCreate
 
-app = FastAPI()
-
 # 데이터베이스 테이블 생성
 Base.metadata.create_all(bind=engine)
 
-
 # API 경로에 대해 고유 ID를 생성하는 사용자 정의 함수
+
 
 def custom_generate_unique_id(route: APIRoute) -> str:
     return f"{route.tags[0]}-{route.name}"
 
+# Sentry 설정 (필요시 활성화)
 # if settings.SENTRY_DSN and settings.ENVIRONMENT != "local":
 #     sentry_sdk.init(dsn=str(settings.SENTRY_DSN), enable_tracing=True)
 
@@ -50,3 +49,7 @@ if settings.BACKEND_CORS_ORIGINS:
 
 # api_router를 애플리케이션에 포함하여 모든 API 엔드포인트를 등록
 app.include_router(api_router, prefix=settings.API_V1_STR)
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="localhost", port=8000)
