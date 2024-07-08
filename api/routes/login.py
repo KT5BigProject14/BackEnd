@@ -62,7 +62,7 @@ async def login_user(user: User, db: Session = Depends(get_db)):
     data = {"email":str(user_id.email)}
     access_token = jwt_service.create_access_token(data)
     refresh_token = jwt_service.create_refresh_token(data)
-    response = JSONResponse(content={"access_token":access_token}, status_code=status.HTTP_200_OK)
+    response = JSONResponse(content={"access_token":access_token,"email":user_id.email}, status_code=status.HTTP_200_OK)
     response.set_cookie(
         key="refresh_token",
         value=refresh_token,

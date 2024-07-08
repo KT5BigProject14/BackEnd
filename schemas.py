@@ -115,7 +115,9 @@ class Qna(BaseModel):
 
     class Config:
         from_attributes = True
-
+        
+class CheckQna(Qna):
+    qna_id : int
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "My FastAPI Project"

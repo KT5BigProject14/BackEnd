@@ -9,7 +9,7 @@ import io
 from PIL import Image, ImageOps
 from boto3 import client
 from core.config import settings
-
+import base64
 
 
 # 이미지 확장자 명 확인
@@ -90,3 +90,8 @@ def upload_to_s3(file: io.BytesIO, bucket_name: str, file_name: str) -> None:
         file_name,
         ExtraArgs={"ContentType": "image/jpeg"},
     )
+    
+def encode_image_to_base64(image_path: str) -> str:
+    with open(image_path, "rb") as image_file:
+        encoded_string = base64.b64encode(image_file.read()).decode("utf-8")
+    return encoded_string
