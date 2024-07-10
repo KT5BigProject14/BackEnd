@@ -58,7 +58,7 @@ async def generate_search_title(question: str):
     try:
         # 첫 번째 서버로 요청 보내기
         response = requests.post(
-            "http://localhost:8080/chain/generate/title", json={"request": question}
+            langserve_url+"/generate/title", json={"request": question}
         )
         response.raise_for_status()
 
@@ -79,7 +79,7 @@ async def generate_search_text(title: str):
     try:
         # 랭서브로 요청 보내기
         response = requests.post(
-            "http://localhost:8080/chain/generate/text", json={"title": title})
+            langserve_url + "/generate/text", json={"title": title})
         response.raise_for_status()
 
         # 랭서브로부터 결과 받기
@@ -95,7 +95,7 @@ async def generate_search_text(title: str):
 # async def chat(session_id: str, user_email: str, question: str):
 #     try:
 #         response = requests.post(
-#             "http://localhost:8080/chat", json={'user_email': user_email, 'session_id': session_id, 'question': question}
+#             "http://localhost:8080/chain/chat", json={'user_email': user_email, 'session_id': session_id, 'question': question}
 #         )
 #         response.raise_for_status()
 
