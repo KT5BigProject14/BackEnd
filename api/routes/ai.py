@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from api.deps import GetCurrentUser
 from api.deps import JWTAuthentication
 from typing import Annotated
@@ -10,6 +10,8 @@ from api.deps import JWTService
 from schemas import JWTEncoder, JWTDecoder
 from core.config import settings
 import requests
+import httpx
+
 router = APIRouter()
 langserve_url = "http://localhost:8080/chain"
 
@@ -47,16 +49,31 @@ async def generate_search_text(title: str):
 
 
 @router.post("/chat")
-async def chat(session_id: str, user_email: str, question: str):
+async def chat(request: Request):
     try:
-        response = requests.post(
-            "http://localhost:8080/chat", json={'user_email': user_email, 'session_id': session_id, 'question': question}
-        )
+        # 요청 본문을 JSON 형식으로 파싱
+        data = await request.json()
+        session_id = data['session_id']
+        user_email = data['user_email']
+        question = data['question']
+
+        # 모델 서버로 요청 보내기
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "http://localhost:8080/chat",
+                json={'user_email': user_email,
+                      'session_id': session_id, 'question': question}
+            )
+
         response.raise_for_status()
 
-        # 랭서브로부터 결과 받기
+        # 모델 서버로부터 결과 받기
         result = response.json()
 
-        return {"session_id": result['session_id'], "generated_chat": result["response"]}
-    except requests.exceptions.RequestException as e:
+        return JSONResponse(content={"session_id": result['session_id'], "generated_chat": result["response"]})
+    except httpx.RequestError as e:
         raise HTTPException(status_code=500, detail=str(e))
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=e.response.status_code, detail=str(e))
+    except KeyError as e:
+        raise HTTPException(status_code=400, detail=f"Missing field: {e}")
