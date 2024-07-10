@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from api.deps import GetCurrentUser
 from api.deps import JWTAuthentication
@@ -12,17 +12,8 @@ from core.config import settings
 import requests
 import httpx
 
-app = FastAPI()
 router = APIRouter()
 langserve_url = "http://localhost:8080/chain"
-
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 # uvicorn main:app --reload
 
