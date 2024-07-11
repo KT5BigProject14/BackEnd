@@ -35,6 +35,25 @@ async def get_all_messages_for_user(user_email: str = Query(..., description="Th
             raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/messages/{user_email}/{session_id}")
+async def get_messages_for_user(user_email: str, session_id: str, start: int = 0, end: int = -1):
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{langserve_url}/messages/{user_email}/{session_id}",
+                params={"start": start, "end": end},
+                timeout=10.0
+            )
+            response.raise_for_status()
+            messages = response.json()
+            return messages
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=500, detail=f"Request error: {e}")
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(
+            status_code=e.response.status_code, detail=e.response.text)
+
+
 # @router.get("/all_messages", response_model=all_messagesResponse)
 # async def get_all_messages_for_user(user_email: str):
 #     async with httpx.AsyncClient() as client:
