@@ -85,9 +85,9 @@ class emailAuth(Base):
 class Docs(Base):
     __tablename__ = 'docs'
     dics_id = Column(Integer, primary_key=True, index=True)
-    email = Column(String(255), unique=True, index=True, nullable=False)
-    question = Column(Text)
-    docs = Column(Text)
+    email = Column(String(255), ForeignKey('users.email'), nullable=False)
+    title = Column(Text)
+    content = Column(Text)
     is_like = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     user = relationship("User", back_populates="docs")
