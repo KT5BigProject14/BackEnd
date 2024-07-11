@@ -13,7 +13,7 @@ class all_messagesResponse(BaseModel):
     messages: List[str]
 
 
-@app.get("/all_messages", response_model=all_messagesResponse)
+@router.get("/all_messages", response_model=all_messagesResponse)
 async def get_all_messages_for_user(user_email: str = Query(..., description="The email of the user to get messages for")):
     async with httpx.AsyncClient() as client:
         try:
@@ -21,7 +21,7 @@ async def get_all_messages_for_user(user_email: str = Query(..., description="Th
                 f"{langserve_url}/all_messages", params={"user_email": user_email}
             )
             response.raise_for_status()
-            result = await response.json()
+            result = response.json()
             return all_messagesResponse(messages=result.get('messages', []))
         except httpx.RequestError as e:
             print(f"Request error: {e}")

@@ -89,9 +89,15 @@ async def generate_search_title(request: Request):
         response.raise_for_status()
 
         # 응답에서 결과 파싱
-        result = response.json()
+        result = response.json()['response']
 
-        return {"question": question, "title": result}
+        # Split the text into individual lines
+        lines = result.split('\n')
+
+        # Extract the quoted sentences and store them in a list
+        title = [line.split('\"')[1] for line in lines]
+
+        return {"question": question, "title": title}
     except requests.exceptions.RequestException as e:
         print(f"요청 예외: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -190,10 +196,17 @@ async def generate_search_text(request: Request, db: Session = Depends(get_db)):
 #         )
 #         response.raise_for_status()
 
-#         # 응답에서 결과 파싱
-#         result = response.json()
 
-#         return {"question": question, "title": result}
+#                 # 응답에서 결과 파싱
+#         result = response.json()['response']
+
+#         # Split the text into individual lines
+#         lines = result.split('\n')
+
+#         # Extract the quoted sentences and store them in a list
+#         title = [line.split('\"')[1] for line in lines]
+
+#         return {"question": question, "title": title}
 #     except requests.exceptions.RequestException as e:
 #         print(f"요청 예외: {e}")
 #         raise HTTPException(status_code=500, detail=str(e))
