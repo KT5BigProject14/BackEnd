@@ -50,7 +50,8 @@ async def chat(request: Request):
         user_email = data['user_email']
         question = data['question']
 
-        session_id = str(uuid.uuid4())
+        if session_id is None:
+            session_id = str(uuid.uuid4())
 
         # 모델 서버로 요청 보내기
         async with httpx.AsyncClient() as client:
