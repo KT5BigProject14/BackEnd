@@ -10,7 +10,7 @@ from models import User  # User 모델을 import
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from crud import login_crud  # user_repository 모듈을 import
-
+from fastapi.responses import JSONResponse
 
 class JWTService:
     def __init__(
@@ -90,7 +90,7 @@ class JWTAuthentication:
                         new_access_token = self.jwt_service.create_access_token(
                             {"email": email})
                         # access_token이 만료 되거나 변형되어서 새롭게 access_token이 발급된 경우 다시 return
-                        response.headers["Authorization"] = f"Bearer {new_access_token}"
+                        return JSONResponse(content={"token": new_access_token})
                     else:
                         raise HTTPException(
                             status_code=status.HTTP_401_UNAUTHORIZED,

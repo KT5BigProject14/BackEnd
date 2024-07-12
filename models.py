@@ -84,7 +84,7 @@ class emailAuth(Base):
 
 class Docs(Base):
     __tablename__ = 'docs'
-    dics_id = Column(Integer, primary_key=True, index=True)
+    docs_id = Column(Integer, primary_key=True, index=True)
     email = Column(String(255), ForeignKey('users.email'), nullable=False)
     title = Column(Text)
     content = Column(Text)
