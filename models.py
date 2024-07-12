@@ -1,11 +1,17 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, DateTime
+from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, Boolean, DateTime, Text
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, sessionmaker, Session
 from sqlalchemy.sql import func
-from sqlalchemy.orm import Session
 from sqlalchemy import event
 
+
+DATABASE_URL = "mysql+pymysql://root:aivle@localhost:3306/retriever"
+
+engine = create_engine(DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
 Base = declarative_base()
+
 
 class User(Base):
     __tablename__ = 'users'
@@ -15,16 +21,20 @@ class User(Base):
     user_info = relationship("UserInfo", back_populates="user", uselist=False)
     qna = relationship("QnA", back_populates="user")
     comments = relationship("Comment", back_populates="user")
+    docs = relationship("Docs", back_populates="user")
+
 
 class UserInfo(Base):
     __tablename__ = 'user_info'
     user_info_id = Column(Integer, primary_key=True, index=True)
-    email = Column(String(255), ForeignKey('users.email'), unique=True, index=True)
+    email = Column(String(255), ForeignKey(
+        'users.email'), unique=True, index=True)
     position = Column(String(100))
     phone = Column(String(20))
     corporation = Column(String(255))
     business_number = Column(Integer)
     user = relationship("User", back_populates="user_info")
+
 
 class QnA(Base):
     __tablename__ = 'qna'
@@ -37,6 +47,7 @@ class QnA(Base):
     comments = relationship("Comment", back_populates="qna")
     images = relationship("Image", back_populates="qna")
 
+
 class Comment(Base):
     __tablename__ = 'comment'
     comment_id = Column(Integer, primary_key=True, index=True)
@@ -48,14 +59,17 @@ class Comment(Base):
     user = relationship("User", back_populates="comments")
     images = relationship("Image", back_populates="comment")
 
+
 class Image(Base):
     __tablename__ = 'image'
     image_id = Column(Integer, primary_key=True, index=True)
     qna_id = Column(Integer, ForeignKey('qna.qna_id'), nullable=True)
-    comment_id = Column(Integer, ForeignKey('comment.comment_id'), nullable=True)
+    comment_id = Column(Integer, ForeignKey(
+        'comment.comment_id'), nullable=True)
     image_name = Column(String(255))
     qna = relationship("QnA", back_populates="images")
     comment = relationship("Comment", back_populates="images")
+
 
 class emailAuth(Base):
     __tablename__ = 'email_auth'
@@ -64,7 +78,19 @@ class emailAuth(Base):
     verify_number = Column(String(10), nullable=False)
     is_active = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at = Column(DateTime(timezone=True),
+                        server_default=func.now(), onupdate=func.now())
+
+
+class Docs(Base):
+    __tablename__ = 'docs'
+    docs_id = Column(Integer, primary_key=True, index=True)
+    email = Column(String(255), ForeignKey('users.email'), nullable=False)
+    title = Column(Text)
+    content = Column(Text)
+    is_like = Column(Boolean, default=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    user = relationship("User", back_populates="docs")
 
 
 @event.listens_for(Session, "before_flush")
@@ -72,3 +98,6 @@ def receive_before_flush(session, flush_context, instances):
     for instance in session.dirty:
         if isinstance(instance, User):
             instance.updated_at = func.now()
+
+
+Base.metadata.create_all(bind=engine)
