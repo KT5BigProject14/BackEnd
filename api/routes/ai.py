@@ -14,6 +14,7 @@ import httpx
 from typing import List
 from models import Docs, SessionLocal
 from pydantic import BaseModel
+import uuid
 
 
 app = FastAPI()
@@ -45,9 +46,11 @@ async def chat(request: Request):
     try:
         # 요청 본문을 JSON 형식으로 파싱
         data = await request.json()
-        session_id = data['session_id']
+        session_id = data.get('session_id')  # session_id가 없으면 None 반환
         user_email = data['user_email']
         question = data['question']
+
+        session_id = str(uuid.uuid4())
 
         # 모델 서버로 요청 보내기
         async with httpx.AsyncClient() as client:
@@ -83,7 +86,7 @@ async def generate_search_title(request: Request):
         # 첫 번째 서버로 요청 보내기
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                f"{langserve_url}/generate/title", json={"request": question["question"]}, timeout=10.0
+                f"{langserve_url}/generate/title", json={"request": question["question"]}
             )
 
         response.raise_for_status()
@@ -95,7 +98,7 @@ async def generate_search_title(request: Request):
         lines = result.split('\n')
 
         # Extract the quoted sentences and store them in a list
-        title = [line.split('\"')[1] for line in lines]
+        title = [line.split('\"')[0] for line in lines]
 
         return {"question": question, "title": title}
     except requests.exceptions.RequestException as e:
@@ -114,7 +117,7 @@ async def generate_search_text(request: Request, db: Session = Depends(get_db)):
         # 첫 번째 서버로 요청 보내기
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                f"{langserve_url}/generate/text", json={"title": question["title"]}, timeout=10.0
+                f"{langserve_url}/generate/text", json={"title": question["title"]}
             )
 
         response.raise_for_status()
