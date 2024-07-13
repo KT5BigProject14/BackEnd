@@ -32,12 +32,9 @@ def get_db():
 
 # uvicorn main:app --reload
 
-class TextRequest(BaseModel):
-    title: str
-    user_email: str
-
 
 class TextResponse(BaseModel):
+    docs_id: int
     text: str
 
 
@@ -134,10 +131,11 @@ async def generate_search_text(request: Request, db: Session = Depends(get_db)):
                        title=question.title, content=result['response'])
         db.add(new_doc)
         db.commit()
+        db.refresh(new_doc)  # 새로 추가된 객체의 docs_id를 얻기 위해 refresh 호출
 
         print("DB 저장 완료")
 
-        return {"text": result['response']}
+        return {"docs_id": new_doc.docs_id, "text": result['response']}
     except requests.exceptions.RequestException as e:
         raise HTTPException(status_code=500, detail=f"Request failed: {e}")
     except Exception as e:
@@ -146,6 +144,144 @@ async def generate_search_text(request: Request, db: Session = Depends(get_db)):
             status_code=500, detail=f"An unexpected error occurred: {e}")
     finally:
         db.close()
+
+
+@router.post("/like")
+async def docs_save(request: Request, db: Session = Depends(get_db)):
+    try:
+        data = await request.json()
+
+        # 해당 문서를 찾습니다.
+        doc = db.query(Docs).filter(Docs.docs_id == data['docs_id']).one()
+
+        # is_like 값을 반대로 바꿉니다. 0: 싫어요, 1: 좋아요
+        doc.is_like = not doc.is_like
+
+        # 변경 사항을 커밋합니다.
+        db.commit()
+
+        return {"is_like": doc.is_like}
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=500, detail=f"Request failed: {e}")
+    except Exception as e:
+        db.rollback()  # 데이터베이스 변경 사항 롤백
+        raise HTTPException(
+            status_code=500, detail=f"An unexpected error occurred: {e}")
+    finally:
+        db.close()
+
+
+@router.post("/get_all_title")
+async def get_all_title_for_user(request: Request, db: Session = Depends(get_db)):
+    try:
+        data = await request.json()
+
+        # 해당 문서를 찾습니다.
+        docs = db.query(Docs).filter(Docs.email == data['email']).all()
+
+        if not docs:
+            raise HTTPException(status_code=404, detail="Document not found")
+
+        # 문서의 title, docs_id, created_at을 추출하여 리스트로 반환합니다.
+        result = [
+            {
+                "docs_id": doc.docs_id,
+                "title": doc.title,
+                "created_at": doc.created_at
+            }
+            for doc in docs
+        ]
+
+        return {"documents": result}
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=500, detail=f"Request failed: {e}")
+    except Exception as e:
+        db.rollback()  # 데이터베이스 변경 사항 롤백
+        raise HTTPException(
+            status_code=500, detail=f"An unexpected error occurred: {e}")
+    finally:
+        db.close()
+
+
+@router.post("/get_text")
+async def get_text_for_user(request: Request, db: Session = Depends(get_db)):
+    try:
+        data = await request.json()
+
+        # 해당 문서를 찾습니다.
+        doc = db.query(Docs).filter(Docs.docs_id == data['docs_id']).one()
+
+        text = doc.content
+
+        return {"text": text}
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=500, detail=f"Request failed: {e}")
+    except Exception as e:
+        db.rollback()  # 데이터베이스 변경 사항 롤백
+        raise HTTPException(
+            status_code=500, detail=f"An unexpected error occurred: {e}")
+    finally:
+        db.close()
+
+
+@router.post("/get_all_text")
+async def get_all_title_for_user(request: Request, db: Session = Depends(get_db)):
+    try:
+        data = await request.json()
+
+        # 해당 문서를 찾습니다.
+        docs = db.query(Docs).filter(Docs.email == data['email'],
+                                     Docs.is_like == True).all()
+
+        if not docs:
+            raise HTTPException(status_code=404, detail="Document not found")
+
+        # 문서의 title, docs_id, created_at을 추출하여 리스트로 반환합니다.
+        result = [
+            {
+                "docs_id": doc.docs_id,
+                "title": doc.title,
+                "text": doc.content
+            }
+            for doc in docs
+        ]
+
+        return {"documents": result}
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=500, detail=f"Request failed: {e}")
+    except Exception as e:
+        db.rollback()  # 데이터베이스 변경 사항 롤백
+        raise HTTPException(
+            status_code=500, detail=f"An unexpected error occurred: {e}")
+    finally:
+        db.close()
+
+
+# @router.post("/like")
+# async def docs_save(request: LikeRequest, db: Session = Depends(get_db)):
+#     try:
+#         # 해당 문서를 찾습니다.
+#         doc = db.query(Docs).filter(Docs.email == request.email,
+#                                     Docs.docs_id == request.docs_id).one()
+
+#         if not doc:
+#             raise HTTPException(status_code=404, detail="Document not found")
+
+#         # is_like 값을 반대로 바꿉니다. 0: 싫어요, 1: 좋아요
+#         doc.is_like = not doc.is_like
+
+#         # 변경 사항을 커밋합니다.
+#         db.commit()
+
+#         return {"is_like": doc.is_like}
+#     except requests.exceptions.RequestException as e:
+#         raise HTTPException(status_code=500, detail=f"Request failed: {e}")
+#     except Exception as e:
+#         db.rollback()  # 데이터베이스 변경 사항 롤백
+#         raise HTTPException(
+#             status_code=500, detail=f"An unexpected error occurred: {e}")
+#     finally:
+#         db.close()
 
 
 # @router.post("/text")
