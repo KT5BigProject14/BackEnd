@@ -198,7 +198,7 @@ async def get_all_title_for_user(request: Request, db: Session = Depends(get_db)
             {
                 "docs_id": doc.docs_id,
                 "title": doc.title,
-                "created_at": doc.created_at
+                "time": doc.created_at
             }
             for doc in docs
         ]
@@ -252,7 +252,7 @@ async def get_all_text_for_user(request: Request, db: Session = Depends(get_db))
             {
                 "docs_id": doc.docs_id,
                 "title": doc.title,
-                "text": doc.content
+                "text": doc.content,
                 "time": doc.created_at
             }
             for doc in docs
