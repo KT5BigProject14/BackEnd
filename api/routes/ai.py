@@ -30,25 +30,6 @@ def get_db():
         db.close()
 
 
-class TitleRequest(BaseModel):
-    question: str
-
-
-class TitleResponse(BaseModel):
-    question: str
-    title: str
-
-
-class TextRequest(BaseModel):
-    user_email: str
-    title: str
-
-
-class TextResponse(BaseModel):
-    docs_id: int
-    text: str
-
-
 @router.post("/chat")
 async def chat(request: Request):
     try:
@@ -87,15 +68,15 @@ async def chat(request: Request):
         raise HTTPException(status_code=400, detail=f"Missing field: {e}")
 
 
-@router.post("/title", response_model=TitleResponse)
-async def generate_search_title(request: TitleRequest):
+@router.post("/title")
+async def generate_search_title(request: Request):
     try:
-        question = await request.json()
+        data = await request.json()
 
         # 첫 번째 서버로 요청 보내기
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                f"{langserve_url}/generate/title", json={"request": question["question"]}
+                f"{langserve_url}/generate/title", json={"request": data["question"]}
             )
 
         response.raise_for_status()
@@ -109,7 +90,7 @@ async def generate_search_title(request: TitleRequest):
         # Extract the quoted sentences and store them in a list
         title = [line.split('\"')[0] for line in lines]
 
-        return {"question": question, "title": title}
+        return {"question": data, "title": title}
     except requests.exceptions.RequestException as e:
         print(f"요청 예외: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -118,19 +99,21 @@ async def generate_search_title(request: TitleRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/text", response_model=TextResponse)
-async def generate_search_text(request: TextRequest, db: Session = Depends(get_db)):
+@router.post("/text")
+async def generate_search_text(request: Request, db: Session = Depends(get_db)):
     try:
+        data = await request.json()
+
         # 랭서브로 요청 보내기
         response = requests.post(
-            f"{langserve_url}/generate/text", json={"title": request.title})
+            f"{langserve_url}/generate/text", json={"title": data["title"]})
         response.raise_for_status()
 
         # 랭서브로부터 결과 받기
         result = response.json()
 
-        print("DB 저장 전 데이터:", request.user_email,
-              request.title, result['response'])
+        print("DB 저장 전 데이터:", data.user_email,
+              data.title, result['response'])
 
         # 결과 데이터 확인
         if 'response' not in result:
@@ -138,8 +121,8 @@ async def generate_search_text(request: TextRequest, db: Session = Depends(get_d
                 status_code=500, detail="Invalid response format from the server")
 
         # db 저장
-        new_doc = Docs(email=request.user_email,
-                       title=request.title, content=result['response'])
+        new_doc = Docs(email=data.user_email,
+                       title=data.title, content=result['response'])
         db.add(new_doc)
         db.commit()
         db.refresh(new_doc)  # 새로 추가된 문서의 ID를 가져오기 위해 refresh
@@ -242,7 +225,8 @@ async def get_all_text_for_user(request: Request, db: Session = Depends(get_db))
 
         # 해당 문서를 찾습니다.
         docs = db.query(Docs).filter(Docs.email == data['email'],
-                                     Docs.is_like == True).all()
+                                     Docs.is_like == True).order_by(
+            Docs.created_at.desc()).all()
 
         if not docs:
             raise HTTPException(status_code=404, detail="Document not found")
