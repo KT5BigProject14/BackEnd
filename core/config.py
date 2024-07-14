@@ -28,7 +28,7 @@ class Settings(BaseSettings):
         list[AnyUrl] | str, BeforeValidator(parse_cors)
     ] = []
     API_V1_STR: str = "/api/v1"
-    SQLALCHEMY_DATABASE_URL: str = "mysql+pymysql://root:aivle@localhost:3306/retriever"
+    SQLALCHEMY_DATABASE_URL: str
     PROJECT_NAME: str
     # SENTRY_DSN: Optional[str] = None
     ENVIRONMENT: str  # ENVIRONMENT 속성 추가
@@ -41,6 +41,9 @@ class Settings(BaseSettings):
     AWS_ACCESS_KEY: str
     AWS_SECRET_KEY: str
     REGIONE_NAME: str
+    GOOGLE_CLIENT_ID : str
+    GOOGLE_CLIENT_SECRET : str
+    GOOGLE_REDIRECT_URI : str 
     # PROJECT_NAME: str = "My FastAPI Project"
     # API_V1_STR: str = "/api/v1"
     # BACKEND_CORS_ORIGINS: list = ["*"]

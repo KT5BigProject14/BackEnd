@@ -1,17 +1,18 @@
-from fastapi import FastAPI, Depends, HTTPException, Response ,Request
+from fastapi import FastAPI, Depends, HTTPException, Response ,Request, Form
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from typing import List
 from models import Base, User as UserModel, UserInfo as UserInfoModel
 from core.database import engine, get_db
 from crud.login_crud import create_user_db, create_user_info_db, get_user, get_users, authenticate_user, email_auth, update_email_auth, create_email_auth\
-    ,update_is_active
+    ,update_is_active,create_google_user
+from crud.info_crud import get_user_info_db
 from schemas import User, UserCreate, UserInfo, UserInfoCreate, UserBase, JWTEncoder, JWTDecoder, SendEmail, MessageOk, CheckEmail, CheckCode
 from typing import Annotated, Any
 from fastapi import status
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import HTMLResponse
-from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from api.deps import JWTService
 from core.config import settings
 from fastapi.logger import logger
@@ -26,6 +27,12 @@ from datetime import datetime, timedelta
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from api.deps import JWTAuthentication
+import requests
+import jwt
+import urllib.parse
+from jwt import PyJWKClient
+from fastapi.responses import RedirectResponse
+from pydantic import EmailStr
 # from models import MessageOk, SendEmail
 # import boto3
 # from botocore.exceptions import ClientError
@@ -41,28 +48,39 @@ GetCurrentUser = Annotated[User, Depends(get_current_user)]
 #     # db 작업 부분으로 보내는 코드
 #     return crud에서_선언한_함수이름(db=db, crud에_선언한_인자_이름=crud로_보낼_데이터(프론트에서 가져온 데이터))
 
-
-# email, 이름, 비번
-#회사명, 회사번호, 직책, 전화번호
+# oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 @router.post("/users/signup")
-def create_user(user: UserCreate, db: Session = Depends(get_db)):
+def create_user(user: UserBase, db: Session = Depends(get_db)):
     db_user = get_user(db, user.email)
     if db_user:
         raise HTTPException(
             status_code=400, detail="User ID already registered")
     update_is_active(db,user)
     create_user_db(db=db, user=user)
-    create_user_info_db(db= db, user_info = user)
     return HTTPException(status_code=200,detail="signup success")
 
 @router.post("/users/login")
-async def login_user(user: User, db: Session = Depends(get_db)):
+async def login_user(
+    username: EmailStr = Form(...),
+    password: str = Form(...),
+    db: Session = Depends(get_db)):
+    data = {"email": username, "password": password}
+    user = User(**data)
     user_id  = authenticate_user(db=db, user=user)
-    data = {"email":str(user_id.email)}
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    db_user_info = get_user_info_db(db= db, user=user_id.email)
+    if db_user_info:
+        role = None
+        data = {"email": str(user_id.email), "name": db_user_info.user_name, "role": "user"}
+    else:
+        role = "quest"
+        data = {"email": str(user_id.email), "role": "guest"}
+        
     access_token = jwt_service.create_access_token(data)
     refresh_token = jwt_service.create_refresh_token(data)
-    response = JSONResponse(content={"access_token":access_token,"email":user_id.email}, status_code=status.HTTP_200_OK)
+    response = JSONResponse(content={"access_token":access_token,"email":user_id.email, "role": role}, status_code=status.HTTP_200_OK)
     response.set_cookie(
         key="refresh_token",
         value=refresh_token,
@@ -71,6 +89,81 @@ async def login_user(user: User, db: Session = Depends(get_db)):
         samesite='none',
     )
     return response
+
+@router.get("/login/google")
+async def auth_login():
+    return {
+            "url": f"https://accounts.google.com/o/oauth2/auth?response_type=code&client_id={settings.GOOGLE_CLIENT_ID}&redirect_uri={settings.GOOGLE_REDIRECT_URI}&scope=openid%20profile%20email&access_type=offline"
+    }
+
+@router.get("/login/oauth2/code/google")
+async def auth_google(request: Request, response: Response, db: Session = Depends(get_db)):
+    code = request.query_params.get('code')
+    if not code:
+        return RedirectResponse(url="http://localhost:3000/google/error")
+    
+    token_url = "https://oauth2.googleapis.com/token"
+    data = {
+        "code": code,
+        "client_id": settings.GOOGLE_CLIENT_ID,
+        "client_secret": settings.GOOGLE_CLIENT_SECRET,
+        "redirect_uri": settings.GOOGLE_REDIRECT_URI,
+        "grant_type": "authorization_code"
+    }
+    token_response = requests.post(token_url, data=data)
+    
+    if token_response.status_code != 200:
+        return {"error": "Failed to get access token", "details": token_response.text}
+    
+    token_json = token_response.json()
+    access_token = token_json.get("access_token")
+    refresh_token = token_json.get("refresh_token")
+    
+    if not access_token:
+        return {"error": "No access token received", "details": token_json}
+    
+    user_info_response = requests.get(
+        "https://www.googleapis.com/oauth2/v1/userinfo",
+        headers={"Authorization": f"Bearer {access_token}"}
+    )
+
+    if user_info_response.status_code != 200:
+        return {"error": "Failed to fetch user info", "details": user_info_response.text}
+    
+    user_info = user_info_response.json()
+    
+    db_user = get_user(db, user_info['email'])
+    if not db_user:
+        create_google_user(db=db, user=user_info['email'])
+    db_user_info = get_user_info_db(db= db, user=user_info['email'] )
+    if db_user_info:
+        role = None
+        data = {"email": str(user_info['email']), "name": db_user_info.user_name, "role": "user"}
+    else:
+        role = "guest"
+        data = {"email": str(user_info['email']), "role": "guest"}
+    
+    access_token = jwt_service.create_access_token(data)
+    refresh_token = jwt_service.create_refresh_token(data)
+    
+    # 쿠키 설정
+
+    
+    # 리디렉션 응답
+    # 이렇게 하면 query에 토큰값이랑 이메일 정보가 노출되어 보안적으로는 redis에 이 값들을 저장하고
+    # 프론트에서 redirect 될면서 바로 redis값을 찾는 요청을 보내 return 해주는게 더 안전한 방법이긴 함
+    # 아래와 같이 보내는 경우에는 query 값으로 sessionStorage에 저장한 후 바로 메인페이지로 redirect 해야함
+    redirect_url = f"http://localhost:3000/google/login?token={access_token}&user={user_info['email']}&role={role}"
+    response = RedirectResponse(url=redirect_url)
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=False,  # HTTPS 사용 시에만 True로 설정, 로컬 테스트라 False로 설정
+        samesite='Lax',  # samesite는 'None', 'Lax', 'Strict' 중 하나여야 합니다. , 'Strict', 'None'은 HTTPS에서만 작동
+    )
+    return response
+
 # 이메일 인증 보내는 로직(background로 멀티 스레드 작업을 통해 보내는 시간 단축)
 @router.post("/email/send_by_gmail")
 async def email_by_gmail(request: Request, mail: SendEmail, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
@@ -91,7 +184,7 @@ async def email_by_gmail(request: Request, mail: SendEmail, background_tasks: Ba
         verification_code = ''.join(secrets.choice("0123456789") for _ in range(6))
         background_tasks.add_task(send_email, mail = mail.email,verification_code=verification_code)
         print(str(round((time()-t)*1000,5))+"ms")
-        create_email_auth(db,mail,verification_code)
+        create_email_auth(db,mail,verify_code = verification_code)
     return MessageOk()
 
 @router.put("/email/check_code")
@@ -108,67 +201,6 @@ async def check_code(user_code: CheckCode, db: Session = Depends(get_db)):
     
 
 
-email_content = """
-<div id=":187" class="a3s aiL "><table border="0" cellpadding="0" cellspacing="0" style="width:815px;margin:55px auto;border:0;background-color:#fff;line-height:1.5;text-align:left;font-family:Roboto,Noto Sans KR,나눔고딕,NanumGothic,맑은고딕,Malgun Gothic,돋움,Dotum,Arial,Tahoma,Geneva,Verdana">
-        <tbody><tr>
-            <td style="padding-bottom:24px;border-bottom:2px solid #000">
-                <a href="https://www.aihub.or.kr" title="새 창 열림" style="margin-left:6px" target="_blank" data-saferedirecturl="https://www.google.com/url?q=https://www.aihub.or.kr&amp;source=gmail&amp;ust=1719642303786000&amp;usg=AOvVaw2v2mG-E42S6-zrhCyl1Bjf">
-                    <img src="https://ci3.googleusercontent.com/meips/ADKq_Nb2Wlc2ydv0_jaCHtDHR8iHexJ26ToSCSXotGz0FvrD1nV09dSXmLkUwHcDa8HiJgatLhsQbe7VFFiGJ5qm87g2kD8XnIiPF_k=s0-d-e1-ft#https://aihub.or.kr/static/image/mail/logoAIHub.png" alt="AI-Hub" style="border:0;vertical-align:top" class="CToWUd" data-bit="iit">
-                </a>
-            </td>
-        </tr>
-        <tr>
-            <td style="height:24px"></td>
-        </tr>
-        <tr>
-            <td>
-                <a href="https://www.aihub.or.kr" title="새 창 열림" style="margin-left:6px" target="_blank" data-saferedirecturl="https://www.google.com/url?q=https://www.aihub.or.kr&amp;source=gmail&amp;ust=1719642303786000&amp;usg=AOvVaw2v2mG-E42S6-zrhCyl1Bjf"><img src="https://ci3.googleusercontent.com/meips/ADKq_NYalvzuOabIKI5J-vKzLaAlJFQaTv9YBy8SrQKMT7YI9euNCh0-lpuRexZInJ-tyEm4elQfwoJ-Ipe-uRsmyV4nNR0YdXSA=s0-d-e1-ft#https://aihub.or.kr/static/image/mail/imgHead.png" alt="" style="border:0;vertical-align:top" class="CToWUd" data-bit="iit"></a>
-            </td>
-        </tr>
-        <tr>
-            <td style="height:98px;font-size:22px;background-color:#f3f3f3;text-align:center;vertical-align:top">
-                아래 <span class="il">인증</span><span class="il">번호</span>를 입력하시면 이메일 <span class="il">인증</span>이 완료됩니다.
-            </td>
-        </tr>
-        <tr>
-            <td style="height:50px"></td>
-        </tr>
-        <tr>
-            <td style="padding:35px;border-top:1px solid #000;border-bottom:1px solid #cfd5d8;color:#666;font-size:15px;text-align:center;line-height:1.86">
-                Retriever 회원가입 이메일 <span class="il">인증</span><span class="il">번호</span>입니다.<br>
-                <span style="color:#000;font-size:20px;font-weight:500"><span class="il">인증</span><span class="il">번호</span> : </span>
-                <span style="color:#378aff;font-size:20px;font-weight:500">{}</span><br><br>
-                위 <span class="il">인증</span><span class="il">번호</span>는 이메일 <span class="il">인증</span>에 24시간 이내 1회 사용할 수 있습니다.<br>
-                24시간이 경과된 후에는 다시 신청하셔야 합니다.<br><br>
-                감사합니다.<br>
-                - Retriever -
-            </td>
-        </tr>
-        <tr>
-            <td style="height:50px"></td>
-        </tr>
-        <tr>
-            <td style="height:108px;vertical-align:top;text-align:center">
-                <a href="https://www.aihub.or.kr" title="새 창 열림" target="_blank" data-saferedirecturl="https://www.google.com/url?q=https://www.aihub.or.kr&amp;source=gmail&amp;ust=1719642303786000&amp;usg=AOvVaw2v2mG-E42S6-zrhCyl1Bjf">
-                    <img src="https://ci3.googleusercontent.com/meips/ADKq_NYWu82zKlCCGrk_PV3thGN6qeOso165IoiGK1LuCqgl8Uo5eoHgUJRhozwT3dfglzhrbdyMlGM2wmBc4o1HPBwCpZaDLR4t=s0-d-e1-ft#https://aihub.or.kr/static/image/mail/btnHome.png" alt="Retriever 홈페이지 바로가기" style="border:0;vertical-align:top" class="CToWUd" data-bit="iit">
-                </a>
-            </td>
-        </tr>
-        <tr>
-            <td style="height:126px;font-size:16px;vertical-align:middle;text-align:center;line-height:28px;background-color:#f5f5f5">
-                본 메일은 회원님께서 Retriever 이메일 수신동의를 하였기에 발송되었습니다.<br>
-                메일 수신을 원치 않으시면 <a title="새 창 열림" style="color:#378aff;text-decoration:underline">[회원정보 관리]</a> 메뉴에서 수신 여부를 수정해주시기 바랍니다.
-            </td>
-        </tr>
-        <tr>
-            <td style="height:104px;color:#fff;font-size:16px;font-weight:300;vertical-align:middle;text-align:center;line-height:28px;background-color:#424242">
-                CONTACT : Retriever : RetrieverKr<br>
-                전화 : 02-1234-1234 / 이메일 : <a href="mailto:aihub@aihub.kr" target="_blank">aihub@aihub.kr</a>
-            </td>
-        </tr>
-    </tbody></table>
-<table style="display:none"><tbody><tr><td><img src="https://ci3.googleusercontent.com/meips/ADKq_NZcK-CwqcsMJuaxGx5HCGRksI3QzS-sPZvEs2sXvBhqhDNsT1eKkpknOKSzuVb9k4YBURT7tri-bMsCggAXq8dVgVGcGAB2jxv7p1DhKlxjkiO46Id8WV0uoDcsIWHF2FVyqLzkYkKGagFvrk9hhVRo_kR0Dg91oB5ssQxoErLlTwcHtKrndM_o36QqMjqjnsBpvl3eLVR5_74Y0dckjuLJjKXCokfChwH0tSRiOtEUEkKgqRfgCZNSOjNNPc73lF6AIBO3IJuYP8RnLLBAPP4VSw=s0-d-e1-ft#https://kr1-mail.worksmobile.com/readReceipt/notify/?img=SfKwKAgmKAu%2FFAglKqg9FAbshAuZaxMdaxuXFA25Kqt%2FFL%2FwFqudFouqaAv%2FKxUltzJG1HkS76CTW6kXMBKmKAuQarlCW6ClWrlNKvINW6JGWVloWrd%3D.gif" border="0" class="CToWUd" data-bit="iit"></td></tr></tbody></table></div>
-"""
 
 async def send_email(**kwargs):
     mail = kwargs.get("mail", None)
@@ -179,9 +211,10 @@ async def send_email(**kwargs):
         yag = yagmail.SMTP({email_addr: "Retriever"}, email_pw)
         # https://myaccount.google.com/u/1/lesssecureapps
         # 추후에 html 파일로 바꿈
-        contents = [
-            email_content.format(verification_code)
-        ]
+        with open('templates/smtp_template.html', 'r', encoding='utf-8') as file:
+            html_template = file.read()
+        html_content = html_template.format(verification_code=verification_code)
+        contents = [html_content]
         yag.send(mail, '[Retriever]이메일 인증을 위한 인증번호를 안내 드립니다.', contents)
     except Exception as e:
         print(e)

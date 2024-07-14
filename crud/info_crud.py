@@ -4,13 +4,21 @@ from schemas import UserCreate , UserInfoCreate, User, UserBase, SendEmail, Chec
 from passlib.context import CryptContext
 from fastapi import FastAPI, Depends, HTTPException
 from typing import Annotated
+from pydantic import EmailStr
 def create_user_info_db(db: Session, user_info: UserInfoBase):
     db_user_info = UserInfoModel(email = user_info.email, corporation = user_info.corporation, business_number = user_info.business_number, 
-                                 position =user_info.position, phone = user_info.phone)
+                                 position =user_info.position, phone = user_info.phone, user_name = user_info.user_name)
     db.add(db_user_info)
     db.commit()
     db.refresh(db_user_info)
     return db_user_info
+
+def get_user_info_db(db: Session, user: EmailStr):
+    db_user_info = db.query(UserInfoModel).filter(UserInfoModel.email == user).first()
+    if db_user_info is None:
+        return None
+    else:
+        return db_user_info
 
 def update_user_info_db(db: Session, user_info: UserInfoBase):
     db_user_info = db.query(UserInfoModel).filter(UserInfoModel.email == user_info.email).first()
@@ -20,6 +28,7 @@ def update_user_info_db(db: Session, user_info: UserInfoBase):
     db_user_info.business_number = user_info.business_number, 
     db_user_info.position =user_info.position, 
     db_user_info.phone = user_info.phone
+    db_user_info.user_name = user_info.user_name
     db.commit()
     db.refresh(db_user_info)
 

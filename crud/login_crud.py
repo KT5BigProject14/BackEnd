@@ -9,16 +9,23 @@ bcrypt_context = CryptContext(schemes=['bcrypt'], deprecated = 'auto')
 def create_user_db(db: Session, user: UserBase):
     hashed_password = bcrypt_context.hash(user.password)
     
-    db_user = UserModel(email=user.email, password=hashed_password, user_name = user.user_name)
+    db_user = UserModel(email=user.email, password=hashed_password)
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
     return db_user
 
+def create_google_user(db:Session, user: str):
+    db_user = UserModel(email=user)
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    
+
 
 def create_user_info_db(db: Session, user_info: UserInfoBase):
     db_user_info = UserInfoModel(email = user_info.email, corporation = user_info.corporation, business_number = user_info.business_number, 
-                                 position =user_info.position, phone = user_info.phone)
+                                 position =user_info.position, phone = user_info.phone, user_name = user_info.user_name)
     db.add(db_user_info)
     db.commit()
     db.refresh(db_user_info)
@@ -61,7 +68,7 @@ def update_email_auth(db: Session, user: CheckEmail, verify_code : str):
     return True
 
 def create_email_auth(db: Session, user: CheckEmail, verify_code : str):
-    email_auth_db = emailAuth(email=user.email, verify_number=verify_code,name = user.name)
+    email_auth_db = emailAuth(email=user.email,verify_number = verify_code )
     db.add(email_auth_db)
     db.commit()
     db.refresh(email_auth_db)

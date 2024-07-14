@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, BackgroundTasks, FastAPI
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
-from api.deps import GetCurrentUser
 from api.deps import JWTAuthentication
 from typing import Annotated
 from schemas import User, JwtUser
