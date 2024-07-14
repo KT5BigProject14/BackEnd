@@ -52,21 +52,3 @@ async def get_messages_for_user(user_email: str, session_id: str, start: int = 0
     except httpx.HTTPStatusError as e:
         raise HTTPException(
             status_code=e.response.status_code, detail=e.response.text)
-
-
-# @router.get("/all_messages", response_model=all_messagesResponse)
-# async def get_all_messages_for_user(user_email: str):
-#     async with httpx.AsyncClient() as client:
-#         try:
-#             response = await client.get(
-#                 f"{langserve_url}/all_messages", params={"user_email": user_email}
-#             )
-#             response.raise_for_status()
-#             result = response.json()  # await 추가
-#             return all_messagesResponse(messages=result.get('messages', []))
-#         except httpx.RequestError as e:
-#             print(f"요청 예외: {e}")
-#             raise HTTPException(status_code=500, detail=str(e))
-#         except Exception as e:
-#             print(f"예외: {e}")
-#             raise HTTPException(status_code=500, detail=str(e))
