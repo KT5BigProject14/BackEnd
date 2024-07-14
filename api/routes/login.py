@@ -5,13 +5,14 @@ from typing import List
 from models import Base, User as UserModel, UserInfo as UserInfoModel
 from core.database import engine, get_db
 from crud.login_crud import create_user_db, create_user_info_db, get_user, get_users, authenticate_user, email_auth, update_email_auth, create_email_auth\
-    ,update_is_active
+    ,update_is_active,create_google_user
+from crud.info_crud import get_user_info_db
 from schemas import User, UserCreate, UserInfo, UserInfoCreate, UserBase, JWTEncoder, JWTDecoder, SendEmail, MessageOk, CheckEmail, CheckCode
 from typing import Annotated, Any
 from fastapi import status
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import HTMLResponse
-from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from api.deps import JWTService
 from core.config import settings
 from fastapi.logger import logger
@@ -26,6 +27,11 @@ from datetime import datetime, timedelta
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from api.deps import JWTAuthentication
+import requests
+import jwt
+import urllib.parse
+from jwt import PyJWKClient
+from fastapi.responses import RedirectResponse
 # from models import MessageOk, SendEmail
 # import boto3
 # from botocore.exceptions import ClientError
@@ -41,9 +47,7 @@ GetCurrentUser = Annotated[User, Depends(get_current_user)]
 #     # db 작업 부분으로 보내는 코드
 #     return crud에서_선언한_함수이름(db=db, crud에_선언한_인자_이름=crud로_보낼_데이터(프론트에서 가져온 데이터))
 
-
-# email, 이름, 비번
-#회사명, 회사번호, 직책, 전화번호
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 @router.post("/users/signup")
 def create_user(user: UserCreate, db: Session = Depends(get_db)):
@@ -58,8 +62,13 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
 
 @router.post("/users/login")
 async def login_user(user: User, db: Session = Depends(get_db)):
+    user.email = user.username
     user_id  = authenticate_user(db=db, user=user)
-    data = {"email":str(user_id.email)}
+    db_user_info = get_user_info_db(db= db, user=user_id.email)
+    if db_user_info:
+        data = {"email": str(user_id.email), "name": db_user_info.user_name, "role": "user"}
+    else:
+        data = {"email": str(user_id.email), "role": "guest"}
     access_token = jwt_service.create_access_token(data)
     refresh_token = jwt_service.create_refresh_token(data)
     response = JSONResponse(content={"access_token":access_token,"email":user_id.email}, status_code=status.HTTP_200_OK)
@@ -71,6 +80,79 @@ async def login_user(user: User, db: Session = Depends(get_db)):
         samesite='none',
     )
     return response
+
+@router.get("/login/google")
+async def auth_login():
+    return {
+            "url": f"https://accounts.google.com/o/oauth2/auth?response_type=code&client_id={settings.GOOGLE_CLIENT_ID}&redirect_uri={settings.GOOGLE_REDIRECT_URI}&scope=openid%20profile%20email&access_type=offline"
+    }
+
+@router.get("/login/oauth2/code/google")
+async def auth_google(request: Request, response: Response, db: Session = Depends(get_db)):
+    code = request.query_params.get('code')
+    if not code:
+        return RedirectResponse(url="http://localhost:3000/google/error")
+    
+    token_url = "https://oauth2.googleapis.com/token"
+    data = {
+        "code": code,
+        "client_id": settings.GOOGLE_CLIENT_ID,
+        "client_secret": settings.GOOGLE_CLIENT_SECRET,
+        "redirect_uri": settings.GOOGLE_REDIRECT_URI,
+        "grant_type": "authorization_code"
+    }
+    token_response = requests.post(token_url, data=data)
+    
+    if token_response.status_code != 200:
+        return {"error": "Failed to get access token", "details": token_response.text}
+    
+    token_json = token_response.json()
+    access_token = token_json.get("access_token")
+    refresh_token = token_json.get("refresh_token")
+    
+    if not access_token:
+        return {"error": "No access token received", "details": token_json}
+    
+    user_info_response = requests.get(
+        "https://www.googleapis.com/oauth2/v1/userinfo",
+        headers={"Authorization": f"Bearer {access_token}"}
+    )
+
+    if user_info_response.status_code != 200:
+        return {"error": "Failed to fetch user info", "details": user_info_response.text}
+    
+    user_info = user_info_response.json()
+    
+    db_user = get_user(db, user_info['email'])
+    if not db_user:
+        create_google_user(db=db, user=user_info['email'])
+    db_user_info = get_user_info_db(db= db, user=user_info['email'] )
+    if db_user_info:
+        data = {"email": str(user_info['email']), "name": db_user_info.user_name, "role": "user"}
+    else:
+        data = {"email": str(user_info['email']), "role": "guest"}
+    
+    access_token = jwt_service.create_access_token(data)
+    refresh_token = jwt_service.create_refresh_token(data)
+    
+    # 쿠키 설정
+
+    
+    # 리디렉션 응답
+    # 이렇게 하면 query에 토큰값이랑 이메일 정보가 노출되어 보안적으로는 redis에 이 값들을 저장하고
+    # 프론트에서 redirect 될면서 바로 redis값을 찾는 요청을 보내 return 해주는게 더 안전한 방법이긴 함
+    # 아래와 같이 보내는 경우에는 query 값으로 sessionStorage에 저장한 후 바로 메인페이지로 redirect 해야함
+    redirect_url = f"http://localhost:3000/google/login?token={access_token}&user={user_info['email']}"
+    response = RedirectResponse(url=redirect_url)
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=False,  # HTTPS 사용 시에만 True로 설정, 로컬 테스트라 False로 설정
+        samesite='Lax',  # samesite는 'None', 'Lax', 'Strict' 중 하나여야 합니다. , 'Strict', 'None'은 HTTPS에서만 작동
+    )
+    return response
+
 # 이메일 인증 보내는 로직(background로 멀티 스레드 작업을 통해 보내는 시간 단축)
 @router.post("/email/send_by_gmail")
 async def email_by_gmail(request: Request, mail: SendEmail, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
@@ -91,7 +173,7 @@ async def email_by_gmail(request: Request, mail: SendEmail, background_tasks: Ba
         verification_code = ''.join(secrets.choice("0123456789") for _ in range(6))
         background_tasks.add_task(send_email, mail = mail.email,verification_code=verification_code)
         print(str(round((time()-t)*1000,5))+"ms")
-        create_email_auth(db,mail,verification_code)
+        create_email_auth(db,mail,verify_code = verification_code)
     return MessageOk()
 
 @router.put("/email/check_code")

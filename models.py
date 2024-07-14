@@ -3,9 +3,9 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker, Session
 from sqlalchemy.sql import func
 from sqlalchemy import event
+from core.config import settings
 
-
-DATABASE_URL = "mysql+pymysql://root:aivle@localhost:3306/retriever"
+DATABASE_URL = settings.SQLALCHEMY_DATABASE_URL
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -17,7 +17,6 @@ class User(Base):
     __tablename__ = 'users'
     email = Column(String(255), primary_key=True, unique=True, index=True)
     password = Column(String(255))
-    user_name = Column(String(255), index=True)
     user_info = relationship("UserInfo", back_populates="user", uselist=False)
     qna = relationship("QnA", back_populates="user")
     comments = relationship("Comment", back_populates="user")
@@ -33,6 +32,7 @@ class UserInfo(Base):
     phone = Column(String(20))
     corporation = Column(String(255))
     business_number = Column(Integer)
+    user_name = Column(String(255), index=True)
     user = relationship("User", back_populates="user_info")
 
 

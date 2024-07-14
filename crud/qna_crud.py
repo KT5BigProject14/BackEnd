@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
-from models import QnA, Image
-from schemas import Qna, CheckQna
+from models import QnA, Image, Comment
+from schemas import Qna, CheckQna, CheckComment
 from passlib.context import CryptContext
 from fastapi import FastAPI, Depends, HTTPException
 from typing import Annotated
@@ -47,4 +47,26 @@ def delete_img(qna: CheckQna, db: Session):
 def delete_qna(qna: CheckQna, db:Session):
     qna_to_delete = db.query(QnA).filter(QnA.qna_id == qna.qna_id).first()
     db.delete(qna_to_delete)
+    db.commit()
+    
+def create_comment(comment: Comment, db: Session):
+    new_comment = Comment(qna_id = comment.qna_id, email = comment.email, content = comment.content)
+    db.add(new_comment)
+    db.commit()
+    db.refresh(new_comment)
+    return new_comment
+
+def get_comment(qna_id: int , db: Session):
+    return db.query(Comment).filter(Comment.qna_id == qna_id).all()
+
+def update_comment(comment: CheckComment, db: Session):
+    target_comment = db.query(Comment).filter(Comment.comment_id == comment.comment_id).first()
+    target_comment.content = comment.content
+    db.commit()
+    db.refresh(target_comment)
+    return target_comment
+
+def delete_comment(comment : CheckComment, db: Session):
+    comment_to_delete = db.query(Comment).filter(Comment.comment_id == comment.comment_id).first()
+    db.delete(comment_to_delete)
     db.commit()

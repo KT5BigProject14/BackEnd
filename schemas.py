@@ -23,6 +23,7 @@ class UserCreate(UserBase):
 
 
 class User(BaseModel):
+    username : str
     email: EmailStr
     password: str
 
@@ -38,6 +39,7 @@ class UserInfoBase(BaseModel):
     business_number: int
     position: str
     phone: str
+    user_name: str
 
 
 class UserInfoCreate(UserInfoBase):
@@ -92,7 +94,6 @@ class JWTDecoder(AbstractDecoder):
 
 
 class SendEmail(BaseModel):
-    name: str
     email: EmailStr
 
 
@@ -118,6 +119,14 @@ class Qna(BaseModel):
         
 class CheckQna(Qna):
     qna_id : int
+    
+class Comment(BaseModel):
+    email: EmailStr
+    qna_id : int
+    content : str
+    
+class CheckComment(Comment):
+    comment_id: int
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "My FastAPI Project"

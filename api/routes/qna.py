@@ -1,6 +1,6 @@
 import service.images as images
-from crud.qna_crud import create_qna, create_qna_image, get_all_qna,get_qna, db_update_qna, delete_qna, delete_img
-from schemas import Qna, CheckQna
+from crud.qna_crud import create_qna, create_qna_image, get_all_qna,get_qna, db_update_qna, delete_qna, delete_img, create_comment, get_comment, update_comment, delete_comment
+from schemas import Qna, CheckQna, Comment, CheckComment
 from fastapi.security import OAuth2PasswordBearer
 from fastapi import APIRouter, UploadFile, HTTPException, status, Depends, Form
 from fastapi.responses import JSONResponse
@@ -82,6 +82,7 @@ async def load_all_qna(db: Session = Depends(get_db)):
 @router.get("/load_qna/{qna_id}")
 async def load_qna(qna_id: int ,db: Session = Depends(get_db)):
     result = get_qna(db, qna_id)
+    comments = get_comment(db = db, qna_id = qna_id)
     if result['qna_image']:
         qna_images = []
         for image_name in result['qna_image']:
@@ -98,14 +99,27 @@ async def load_qna(qna_id: int ,db: Session = Depends(get_db)):
             "qna_id": result['qna'].qna_id,
             "created_at": result['qna'].created_at.isoformat()
         }
+        comment_response = [
+            {
+                "comment_id": comment.comment_id,
+                "content": comment.content,
+                "created_at": comment.created_at.isoformat() ,
+                "qna_id": comment.qna_id,
+                "email": comment.email
+            } 
+            for comment in comments
+            ]
 
         response_content = {
-            "qna": qna_dict,
-            "qna_images": qna_images
+            "result":{
+                "qna": qna_dict,
+                "qna_images": qna_images
+            },
+            "comment":comment_response
         }
         return JSONResponse(content=response_content)
     else:
-        return result
+        return {"result": result, "comment": comments}
 @router.put("/update_qna")
 async def update_qna(
     email: EmailStr,
@@ -125,7 +139,7 @@ async def update_qna(
         # 이미지 처리 로직
         deleted_images = delete_img(qna, db)
         for deleted_imgs in deleted_images:
-            filename = deleted_img.image_name
+            filename = deleted_imgs.image_name
             images.delete_file_from_filesystem(f"./img/{filename}")
 
         image_filenames = []
@@ -149,33 +163,25 @@ async def load_qna(qna: CheckQna ,email: EmailStr ,db: Session = Depends(get_db)
             images.delete_file_from_filesystem(f"./img/{filename}")
         return HTTPException(status_code=200, detail="delete_sucess")   
     else:
-        HTTPException(status_code=400, detail="you are not writer")  
+        raise HTTPException(status_code=400, detail="you are not writer")  
 
-# @router.post("/upload")
-# async def upload_qna(qna_data: Qna,db: Session = Depends(get_db)):
-#     qna = create_qna(db=db, qna = qna_data)
-#     return qna
+@router.post("/upload/comment")
+async def upload_qna(comment: Comment,db: Session = Depends(get_db)):
+    comment = create_comment(db=db, comment = comment)
+    return comment
 
-# @router.get("/load_all_qna")
-# async def load_all_qna(db: Session = Depends(get_db)):
-#     return get_all_qna(db)
-
-# @router.get("/load_qna/{qna_id}")
-# async def load_qna(qna_id: int ,email: EmailStr ,db: Session = Depends(get_db)):
-#     result = get_qna(db, qna_id)
-#     return result
-
-# @router.put("/update_qna")
-# async def load_qna(qna: CheckQna ,email: EmailStr ,db: Session = Depends(get_db)):
-#     if qna.email == email:
-#         result = update_qna(qna,db)
-#         return result   
-#     else:
-#         HTTPException(status_code=400, detail="you are not writer")     
-# @router.delete("/delete_qna")
-# async def load_qna(qna: CheckQna ,email: EmailStr ,db: Session = Depends(get_db)):
-#     if qna.email == email:
-#         delete_qna(qna,db)
-#         return HTTPException(status_code=200, detail="delete_sucess")   
-#     else:
-#         HTTPException(status_code=400, detail="you are not writer")  
+@router.put("/update/comment")
+async def load_qna(comment: CheckComment ,email: EmailStr ,db: Session = Depends(get_db)):
+    if comment.email == email:
+        result = update_comment(comment,db)
+        return result   
+    else:
+        raise HTTPException(status_code=400, detail="you are not writer")
+             
+@router.delete("/delete/comment")
+async def load_qna(qna: CheckComment ,email: EmailStr ,db: Session = Depends(get_db)):
+    if qna.email == email:
+        delete_comment(qna,db)
+        return HTTPException(status_code=200, detail="delete_sucess")   
+    else:
+        raise HTTPException(status_code=400, detail="you are not writer")  
