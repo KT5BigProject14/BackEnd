@@ -62,11 +62,8 @@ def create_user(user: UserBase, db: Session = Depends(get_db)):
 
 @router.post("/users/login")
 async def login_user(
-    username: EmailStr = Form(...),
-    password: str = Form(...),
+    user : User,
     db: Session = Depends(get_db)):
-    data = {"email": username, "password": password}
-    user = User(**data)
     user_id  = authenticate_user(db=db, user=user)
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid credentials")
