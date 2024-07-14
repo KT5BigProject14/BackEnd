@@ -43,7 +43,7 @@ jwt_authentication = JWTAuthentication(jwt_service)
 
 @app.middleware("http")
 async def jwt_middleware(request: Request, call_next):
-    if request.url.path.startswith("/docs") or request.url.path.startswith("/retriever/users/") or request.url.path.startswith("/retriever/openapi.json") or request.url.path.startswith("/token"):   # "/public" 경로는 미들웨어 적용 제외
+    if request.url.path.startswith("/docs") or request.url.path.startswith("/retriever") or request.url.path.startswith("/retriever/openapi.json") or request.url.path.startswith("/token"):   # "/public" 경로는 미들웨어 적용 제외
         response = await call_next(request)
         return response
     response = Response("Internal server error", status_code=500)
