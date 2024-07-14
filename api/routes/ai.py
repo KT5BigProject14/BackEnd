@@ -30,6 +30,25 @@ def get_db():
         db.close()
 
 
+class TitleRequest(BaseModel):
+    question: str
+
+
+class TitleResponse(BaseModel):
+    question: str
+    title: str
+
+
+class TextRequest(BaseModel):
+    user_email: str
+    title: str
+
+
+class TextResponse(BaseModel):
+    docs_id: int
+    text: str
+
+
 @router.post("/chat")
 async def chat(request: Request):
     try:
@@ -99,21 +118,19 @@ async def generate_search_title(request: Request):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/text")
-async def generate_search_text(request: Request, db: Session = Depends(get_db)):
+@router.post("/text", response_model=TextResponse)
+async def generate_search_text(request: TextRequest, db: Session = Depends(get_db)):
     try:
-        data = await request.json()
-
         # 랭서브로 요청 보내기
         response = requests.post(
-            f"{langserve_url}/generate/text", json={"title": data["title"]})
+            f"{langserve_url}/generate/text", json={"title": request.title})
         response.raise_for_status()
 
         # 랭서브로부터 결과 받기
         result = response.json()
 
-        print("DB 저장 전 데이터:", data.user_email,
-              data.title, result['response'])
+        print("DB 저장 전 데이터:", request.user_email,
+              request.title, result['response'])
 
         # 결과 데이터 확인
         if 'response' not in result:
@@ -121,8 +138,8 @@ async def generate_search_text(request: Request, db: Session = Depends(get_db)):
                 status_code=500, detail="Invalid response format from the server")
 
         # db 저장
-        new_doc = Docs(email=data.user_email,
-                       title=data.title, content=result['response'])
+        new_doc = Docs(email=request.user_email,
+                       title=request.title, content=result['response'])
         db.add(new_doc)
         db.commit()
         db.refresh(new_doc)  # 새로 추가된 문서의 ID를 가져오기 위해 refresh
