@@ -50,19 +50,17 @@ GetCurrentUser = Annotated[User, Depends(get_current_user)]
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 @router.post("/users/signup")
-def create_user(user: UserCreate, db: Session = Depends(get_db)):
+def create_user(user: UserBase, db: Session = Depends(get_db)):
     db_user = get_user(db, user.email)
     if db_user:
         raise HTTPException(
             status_code=400, detail="User ID already registered")
     update_is_active(db,user)
     create_user_db(db=db, user=user)
-    create_user_info_db(db= db, user_info = user)
     return HTTPException(status_code=200,detail="signup success")
 
 @router.post("/users/login")
 async def login_user(user: User, db: Session = Depends(get_db)):
-    user.email = user.username
     user_id  = authenticate_user(db=db, user=user)
     db_user_info = get_user_info_db(db= db, user=user_id.email)
     if db_user_info:

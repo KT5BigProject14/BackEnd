@@ -12,10 +12,11 @@ from pydantic import Field
 class UserBase(BaseModel):
     email: EmailStr
     password: str
-    user_name: str
+
 
 
 class UserCreate(UserBase):
+    user_name: str
     corporation: str
     business_number: int
     position: str
@@ -23,7 +24,7 @@ class UserCreate(UserBase):
 
 
 class User(BaseModel):
-    username : str
+    # username : str
     email: EmailStr
     password: str
 
