@@ -38,6 +38,11 @@ class TextResponse(BaseModel):
     text: str
 
 
+class TextRequest(BaseModel):
+    user_email: str
+    title: str
+
+
 @router.post("/chat")
 async def chat(request: Request):
     try:
@@ -108,33 +113,34 @@ async def generate_search_title(request: Request):
 
 
 @router.post("/text", response_model=TextResponse)
-async def generate_search_text(request: Request, db: Session = Depends(get_db)):
+async def generate_search_text(request: TextRequest, db: Session = Depends(get_db)):
     try:
-        question = await request.json()
-
-        # 첫 번째 서버로 요청 보내기
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"{langserve_url}/generate/text", json={"title": question["title"]}
-            )
-
+        # 랭서브로 요청 보내기
+        response = requests.post(
+            f"{langserve_url}/generate/text", json={"title": request.title})
         response.raise_for_status()
 
         # 랭서브로부터 결과 받기
         result = response.json()
 
-        print("DB 저장 전 데이터:", question.user_email,
-              question.title, result['response'])
+        print("DB 저장 전 데이터:", request.user_email,
+              request.title, result['response'])
+
+        # 결과 데이터 확인
+        if 'response' not in result:
+            raise HTTPException(
+                status_code=500, detail="Invalid response format from the server")
 
         # db 저장
-        new_doc = Docs(email=question.user_email,
-                       title=question.title, content=result['response'])
+        new_doc = Docs(email=request.user_email,
+                       title=request.title, content=result['response'])
         db.add(new_doc)
         db.commit()
-        db.refresh(new_doc)  # 새로 추가된 객체의 docs_id를 얻기 위해 refresh 호출
+        db.refresh(new_doc)  # 새로 추가된 문서의 ID를 가져오기 위해 refresh
 
         print("DB 저장 완료")
 
+        # docs_id 포함하여 반환
         return {"docs_id": new_doc.docs_id, "text": result['response']}
     except requests.exceptions.RequestException as e:
         raise HTTPException(status_code=500, detail=f"Request failed: {e}")
@@ -144,6 +150,41 @@ async def generate_search_text(request: Request, db: Session = Depends(get_db)):
             status_code=500, detail=f"An unexpected error occurred: {e}")
     finally:
         db.close()
+
+
+# @router.post("/text", response_model=TextResponse)
+# async def generate_search_text(request: Request, db: Session = Depends(get_db)):
+#     try:
+#         data = await request.json()
+
+#         response = requests.post(
+#             f"{langserve_url}/generate/text", json={"title": data["title"]})
+#         response.raise_for_status()
+
+#         # 랭서브로부터 결과 받기
+#         result = response.json()
+
+#         print("DB 저장 전 데이터:", data.user_email,
+#               data.title, result['response'])
+
+#         # db 저장
+#         new_doc = Docs(email=data['user_email'],
+#                        title=data['title'], content=result['response'])
+#         db.add(new_doc)
+#         db.commit()
+#         db.refresh(new_doc)  # 새로 추가된 객체의 docs_id를 얻기 위해 refresh 호출
+
+#         print("DB 저장 완료")
+
+#         return {"docs_id": new_doc.docs_id, "text": result['response']}
+#     except requests.exceptions.RequestException as e:
+#         raise HTTPException(status_code=500, detail=f"Request failed: {e}")
+#     except Exception as e:
+#         db.rollback()  # 데이터베이스 변경 사항 롤백
+#         raise HTTPException(
+#             status_code=500, detail=f"An unexpected error occurred: {e}")
+#     finally:
+#         db.close()
 
 
 @router.post("/like")
@@ -356,39 +397,41 @@ async def get_all_title_for_user(request: Request, db: Session = Depends(get_db)
 
 
 # # input test 버전
-# @router.post("/text", response_model=TextResponse)
-# async def generate_search_text(request: TextRequest, db: Session = Depends(get_db)):
-#     try:
-#         # 랭서브로 요청 보내기
-#         response = requests.post(
-#             "http://localhost:8080/chain/generate/text", json={"title": request.title})
-#         response.raise_for_status()
+@router.post("/text", response_model=TextResponse)
+async def generate_search_text(request: TextRequest, db: Session = Depends(get_db)):
+    try:
+        # 랭서브로 요청 보내기
+        response = requests.post(
+            "http://localhost:8080/chain/generate/text", json={"title": request.title})
+        response.raise_for_status()
 
-#         # 랭서브로부터 결과 받기
-#         result = response.json()
+        # 랭서브로부터 결과 받기
+        result = response.json()
 
-#         print("DB 저장 전 데이터:", request.user_email,
-#               request.title, result['response'])
+        print("DB 저장 전 데이터:", request.user_email,
+              request.title, result['response'])
 
-#         # 결과 데이터 확인
-#         if 'response' not in result:
-#             raise HTTPException(
-#                 status_code=500, detail="Invalid response format from the server")
+        # 결과 데이터 확인
+        if 'response' not in result:
+            raise HTTPException(
+                status_code=500, detail="Invalid response format from the server")
 
-#         # db 저장
-#         new_doc = Docs(email=request.user_email,
-#                        title=request.title, content=result['response'])
-#         db.add(new_doc)
-#         db.commit()
+        # db 저장
+        new_doc = Docs(email=request.user_email,
+                       title=request.title, content=result['response'])
+        db.add(new_doc)
+        db.commit()
+        db.refresh(new_doc)  # 새로 추가된 문서의 ID를 가져오기 위해 refresh
 
-#         print("DB 저장 완료")
+        print("DB 저장 완료")
 
-#         return {"text": result['response']}
-#     except requests.exceptions.RequestException as e:
-#         raise HTTPException(status_code=500, detail=f"Request failed: {e}")
-#     except Exception as e:
-#         db.rollback()  # 데이터베이스 변경 사항 롤백
-#         raise HTTPException(
-#             status_code=500, detail=f"An unexpected error occurred: {e}")
-#     finally:
-#         db.close()
+        # docs_id 포함하여 반환
+        return {"docs_id": new_doc.docs_id, "text": result['response']}
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=500, detail=f"Request failed: {e}")
+    except Exception as e:
+        db.rollback()  # 데이터베이스 변경 사항 롤백
+        raise HTTPException(
+            status_code=500, detail=f"An unexpected error occurred: {e}")
+    finally:
+        db.close()
