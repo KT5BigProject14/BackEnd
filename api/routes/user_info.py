@@ -30,10 +30,9 @@ def verify_header(token: str = Depends(oauth2_scheme)) -> str:
     return token
 
 # request에 담겨있는 토큰 파싱한 유저 정보로 email 찾음
-@router.get("/user_info")
-def read_user_info(request: Request, db: Session = Depends(get_db), token: str = Depends(verify_header)):
-    print(request.state.user)
-    db_user_info = get_user_info_db(db = db,user= request.state.user.email )
+@router.get("/user_info/{email}")
+def read_user_info(email: str, request: Request, db: Session = Depends(get_db)):
+    db_user_info = get_user_info_db(db = db,user= email )
     if db_user_info is None:
         raise HTTPException(status_code=404, detail="User Info not found")
     return db_user_info
@@ -44,7 +43,7 @@ def create_user_info(user_info: UserInfoBase, db: Session = Depends(get_db)):
     return HTTPException(status_code=200, detail="create user info")
 
 @router.put("/user_info/")
-def update_user_info(user_info: UserInfoBase ,db: Session = Depends(get_db), token: str = Depends(verify_header)):
+def update_user_info(user_info: UserInfoBase ,db: Session = Depends(get_db)):
     update_user_info_db(db, user_info)
     return HTTPException(status_code=200, detail="update_user_info")
 
