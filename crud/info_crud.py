@@ -5,6 +5,7 @@ from passlib.context import CryptContext
 from fastapi import FastAPI, Depends, HTTPException
 from typing import Annotated
 from pydantic import EmailStr
+
 def create_user_info_db(db: Session, user_info: UserInfoBase):
     db_user_info = UserInfoModel(email = user_info.email, corporation = user_info.corporation, business_number = user_info.business_number, 
                                  position =user_info.position, phone = user_info.phone, user_name = user_info.user_name)
@@ -31,3 +32,10 @@ def update_user_info_db(db: Session, user_info: UserInfoBase):
     db_user_info.user_name = user_info.user_name
     db.commit()
     db.refresh(db_user_info)
+
+def change_user_role(db:Session, user: str):
+    db_user = db.query(UserModel).filter(UserModel.email == user).first()
+    db_user.role = "user"
+    db.commit()
+    db.refresh(db_user)
+    return db_user
