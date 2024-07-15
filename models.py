@@ -17,6 +17,7 @@ class User(Base):
     __tablename__ = 'users'
     email = Column(String(255), primary_key=True, unique=True, index=True)
     password = Column(String(255))
+    role = Column(String(50), default="guest")
     user_info = relationship("UserInfo", back_populates="user", uselist=False)
     qna = relationship("QnA", back_populates="user")
     comments = relationship("Comment", back_populates="user")

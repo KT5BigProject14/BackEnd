@@ -5,7 +5,7 @@ from passlib.context import CryptContext
 from fastapi import FastAPI, Depends, HTTPException
 from typing import Annotated
 def create_qna(db: Session, qna: Qna):
-    qna = QnA(email=qna.email, title=qna.title, content = qna.content)
+    qna = QnA(email=qna.qna_email, title=qna.title, content = qna.content)
     db.add(qna)
     db.commit()
     db.refresh(qna)

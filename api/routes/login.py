@@ -70,15 +70,13 @@ async def login_user(
         raise HTTPException(status_code=401, detail="Invalid credentials")
     db_user_info = get_user_info_db(db= db, user=user_id.email)
     if db_user_info:
-        role = None
-        data = {"email": str(user_id.email), "name": db_user_info.user_name, "role": "user"}
+        data = {"email": str(user_id.email), "name": db_user_info.user_name, "role": user_id.role}
     else:
-        role = "quest"
-        data = {"email": str(user_id.email), "role": "guest"}
+        data = {"email": str(user_id.email), "role":user_id.role}
         
     access_token = jwt_service.create_access_token(data)
     refresh_token = jwt_service.create_refresh_token(data)
-    response = JSONResponse(content={"access_token":access_token,"email":user_id.email, "role": role}, status_code=status.HTTP_200_OK)
+    response = JSONResponse(content={"access_token":access_token,"email":user_id.email, "role": user_id.role}, status_code=status.HTTP_200_OK)
     response.set_cookie(
         key="refresh_token",
         value=refresh_token,
