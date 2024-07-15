@@ -133,11 +133,9 @@ async def auth_google(request: Request, response: Response, db: Session = Depend
         create_google_user(db=db, user=user_info['email'])
     db_user_info = get_user_info_db(db= db, user=user_info['email'] )
     if db_user_info:
-        role = None
-        data = {"email": str(user_info['email']), "name": db_user_info.user_name, "role": "user"}
+        data = {"email": str(user_info['email']), "name": db_user_info.user_name, "role": db_user.role}
     else:
-        role = "guest"
-        data = {"email": str(user_info['email']), "role": "guest"}
+        data = {"email": str(user_info['email']), "role": db_user.role}
     
     access_token = jwt_service.create_access_token(data)
     refresh_token = jwt_service.create_refresh_token(data)
@@ -149,7 +147,7 @@ async def auth_google(request: Request, response: Response, db: Session = Depend
     # 이렇게 하면 query에 토큰값이랑 이메일 정보가 노출되어 보안적으로는 redis에 이 값들을 저장하고
     # 프론트에서 redirect 될면서 바로 redis값을 찾는 요청을 보내 return 해주는게 더 안전한 방법이긴 함
     # 아래와 같이 보내는 경우에는 query 값으로 sessionStorage에 저장한 후 바로 메인페이지로 redirect 해야함
-    redirect_url = f"http://localhost:3000/google/login?token={access_token}&user={user_info['email']}&role={role}"
+    redirect_url = f"http://localhost:3000/google/login?token={access_token}&user={user_info['email']}&role={db_user.role}"
     response = RedirectResponse(url=redirect_url)
     response.set_cookie(
         key="refresh_token",

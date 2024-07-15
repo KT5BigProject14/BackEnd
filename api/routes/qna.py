@@ -73,7 +73,7 @@ async def upload_qna(email: Annotated[str, Form()], title: Annotated[str, Form()
         filename = await upload_image(image)
         create_qna_image(db=db, image=filename, qna=created_qna)
         image_filenames.append(filename)
-    return {"qna": qna, "images": image_filenames}
+    return HTTPException(status_code=status.HTTP_200_OK, detail="upload successful" )
 
 @router.get("/load_all_qna")
 async def load_all_qna(db: Session = Depends(get_db)):
@@ -95,7 +95,7 @@ async def load_qna(qna_id: int ,db: Session = Depends(get_db)):
         qna_dict = {
             "title": result['qna'].title,
             "content": result['qna'].content,
-            "email": result['qna'].email,
+            "qna_email": result['qna'].email,
             "qna_id": result['qna'].qna_id,
             "created_at": result['qna'].created_at.isoformat()
         }
