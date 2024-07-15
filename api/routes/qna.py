@@ -62,7 +62,7 @@ GetCurrentUser = Annotated[User, Depends(get_current_user)]
 
 @router.post("/upload")
 async def upload_qna(email: Annotated[str, Form()], title: Annotated[str, Form()], content: Annotated[str, Form()], images: List[UploadFile] = File([]), db: Session = Depends(get_db)):
-    qna_data = {"email": email, "title": title, "content": content}
+    qna_data = {"qna_email": email, "title": title, "content": content}
     qna = Qna(**qna_data)  # Qna 모델 인스턴스 생성
     # qna 글 저장 return 값은 해당글 정보
     created_qna = create_qna(db=db, qna=qna)
