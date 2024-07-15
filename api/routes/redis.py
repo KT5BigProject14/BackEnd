@@ -31,7 +31,7 @@ def extract_and_sort_messages(messages):
 
     # 시간순으로 정렬
     sorted_messages = sorted(
-        paired_messages, key=lambda x: datetime.strptime(x[2], '%Y.%m.%d %H:%M:%S'))
+        paired_messages, key=lambda x: datetime.strptime(x[2], '%Y.%m.%d %H:%M:%S'), reverse=True)
 
     # 정렬된 결과를 원하는 형식으로 변환
     result = []
@@ -67,6 +67,11 @@ async def get_all_messages_for_user(user_email: str = Query(..., description="Th
             raise HTTPException(status_code=500, detail=str(e))
 
 
+# 메세지만 추출
+def remove_timestamps(messages):
+    return [re.sub(r"^\d{4}[\.-]\d{2}[\.-]\d{2} \d{2}:\d{2}:\d{2} - ", "", message) for message in messages]
+
+
 @router.get("/messages/{user_email}/{session_id}")
 async def get_messages_for_user(user_email: str, session_id: str, start: int = 0, end: int = -1):
     try:
@@ -78,7 +83,8 @@ async def get_messages_for_user(user_email: str, session_id: str, start: int = 0
             )
             response.raise_for_status()
             messages = response.json()
-            return messages
+            cleaned_messages = remove_timestamps(messages['messages'])
+            return {"messages": cleaned_messages}
     except httpx.RequestError as e:
         raise HTTPException(status_code=500, detail=f"Request error: {e}")
     except httpx.HTTPStatusError as e:
