@@ -82,14 +82,29 @@ def update_is_active(db: Session, user: UserCreate):
     db.commit()
     db.refresh(email_auth_db)
 
-def update_new_random_password(email:EmailStr,new_password:str, db:Session):
-    hashed_password = bcrypt_context.hash(new_password)
-    user = db.query(UserModel).filter(UserModel.email == email).first()
-    if user is None:
-        return None
-    user.password = hashed_password
-    db.commit()
-    db.refresh(user)
+def update_new_random_password(email: SendEmail, new_password: str, db: Session):
+    try:
+        # 새 패스워드를 해시
+        hashed_password = bcrypt_context.hash(new_password)
+        
+        # 데이터베이스에서 유저를 검색
+        user = db.query(UserModel).filter(UserModel.email == email.email).first()
+        
+        # 유저가 없으면 None 반환
+        if user is None:
+            return None
+        
+        # 패스워드 업데이트
+        user.password = hashed_password
+        
+        # 변경사항 커밋 및 세션 새로고침
+        db.commit()
+        db.refresh(user)
+        
+        return user  # 변경된 유저 객체 반환
+    except Exception as e:
+        db.rollback()  # 에러 발생 시 롤백
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
 
 def update_password(db:Session, password:ChangePassword):
     hashed_password = bcrypt_context.hash(password.new_password)

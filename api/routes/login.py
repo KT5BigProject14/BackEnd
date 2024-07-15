@@ -210,7 +210,8 @@ async def check_code(user_code: CheckCode, db: Session = Depends(get_db)):
         raise  HTTPException(status_code=status.HTTP_200_OK, detail="verify_code is same")
     else:
         raise  HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="verify_code is different")
-        
+
+# 새로운 이메일 전송하는 코드        
 @router.post("/send/new/password")
 async def send_new_password(request: Request, mail: SendEmail, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     characters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*"
