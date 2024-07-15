@@ -92,7 +92,7 @@ def update_new_random_password(email: SendEmail, new_password: str, db: Session)
         
         # 유저가 없으면 None 반환
         if user is None:
-            return None
+            raise HTTPException(status_code=404, detail="user not found")
         
         # 패스워드 업데이트
         user.password = hashed_password
@@ -115,3 +115,10 @@ def update_password(db:Session, password:ChangePassword):
     db.commit()
     db.refresh(db_user)
         
+def create_admin(db:Session,user: UserBase ):
+    hashed_password = bcrypt_context.hash(user.password)
+    db_user = UserModel(email=user.email, password=hashed_password, role = "admin")
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user

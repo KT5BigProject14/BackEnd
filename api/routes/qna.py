@@ -1,5 +1,5 @@
 import service.images as images
-from crud.qna_crud import create_qna, create_qna_image, get_all_qna,get_qna, db_update_qna, delete_qna, delete_img, create_comment, get_comment, update_comment, delete_comment
+from crud.qna_crud import create_qna, create_qna_image,get_qna, db_update_qna, delete_qna, delete_img, create_comment, get_comment, update_comment, delete_comment, user_all_qna,admin_all_qna
 from schemas import Qna, CheckQna, Comment, CheckComment
 from fastapi.security import OAuth2PasswordBearer
 from fastapi import APIRouter, UploadFile, HTTPException, status, Depends, Form
@@ -75,52 +75,57 @@ async def upload_qna(email: Annotated[str, Form()], title: Annotated[str, Form()
         image_filenames.append(filename)
     return HTTPException(status_code=status.HTTP_200_OK, detail="upload successful" )
 
-@router.get("/load_all_qna")
-async def load_all_qna(db: Session = Depends(get_db)):
-    return get_all_qna(db)
+@router.get("/user_all_qna")
+async def load_user_all_qna(email:EmailStr, db: Session = Depends(get_db)):
+    return user_all_qna(db,email)
+
+@router.get("/admin_all_qna")
+async def load_admin_all_qna(db: Session = Depends(get_db)):
+    return admin_all_qna(db)
 
 @router.get("/load_qna/{qna_id}")
-async def load_qna(qna_id: int ,db: Session = Depends(get_db)):
+async def load_qna(qna_id: int, db: Session = Depends(get_db)):
     result = get_qna(db, qna_id)
-    comments = get_comment(db = db, qna_id = qna_id)
-    if result['qna_image']:
-        qna_images = []
-        for image_name in result['qna_image']:
+    comments = get_comment(db=db, qna_id=qna_id)
+    qna_images = []
+    
+    if result['qna_images']:
+        for image_name in result['qna_images']:
             image_path = os.path.join("./img", image_name)
             if os.path.exists(image_path):
                 encoded_image = images.encode_image_to_base64(image_path)
                 qna_images.append({
                     image_name: encoded_image,
                 })
-        qna_dict = {
-            "title": result['qna'].title,
-            "content": result['qna'].content,
-            "email": result['qna'].email,
-            "qna_id": result['qna'].qna_id,
-            "created_at": result['qna'].created_at.isoformat()
-        }
-        comment_response = [
-            {
-                "comment_id": comment.comment_id,
-                "content": comment.content,
-                "created_at": comment.created_at.isoformat() ,
-                "qna_id": comment.qna_id,
-                "email": comment.email
-            } 
-            for comment in comments
-            ]
-
-        response_content = {
-            "result":{
-                "qna": qna_dict,
-                "qna_images": qna_images
-            },
-            "comment":comment_response
-        }
-        return JSONResponse(content=response_content)
-    else:
-        return {"result": result, "comment": comments}
     
+    qna_dict = {
+        "title": result['qna'].title,
+        "content": result['qna'].content,
+        "email": result['qna'].email,
+        "qna_id": result['qna'].qna_id,
+        "created_at": result['qna'].created_at.isoformat()
+    }
+    
+    comment_response = [
+        {
+            "comment_id": comment.comment_id,
+            "content": comment.content,
+            "created_at": comment.created_at.isoformat(),
+            "qna_id": comment.qna_id,
+            "email": comment.email
+        }
+        for comment in comments
+    ]
+    
+    response_content = {
+        "result": {
+            "qna": qna_dict,
+            "qna_images": qna_images
+        },
+        "comment": comment_response
+    }
+    return JSONResponse(content=response_content)
+
 @router.put("/update_qna")
 async def update_qna(
     user_email: EmailStr,
@@ -128,7 +133,7 @@ async def update_qna(
     email: Annotated[str, Form()],
     title: Annotated[str, Form()],
     content: Annotated[str, Form()],
-    image: Optional[List[UploadFile]] = File([]),
+    image: List[UploadFile] = File([]),
     db: Session = Depends(get_db)
 ):
     if user_email == email:
@@ -147,7 +152,7 @@ async def update_qna(
         if image:
             for img in image:
                 filename = await upload_image(img)
-                create_qna_image(db=db, image=filename, qna_id=qna_id)
+                create_qna_image(db=db, image=filename, qna=result)
                 image_filenames.append(filename)
 
         return {"qna": qna, "img": image_filenames}

@@ -3,7 +3,7 @@ from api.main import api_router
 from starlette.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRoute
 import sentry_sdk
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
 from models import Base, User as UserModel, UserInfo as UserInfoModel
@@ -16,6 +16,7 @@ from api.deps import JWTService, JWTAuthentication, get_db
 from schemas import JWTEncoder, JWTDecoder
 from fastapi.responses import JSONResponse
 from core.config import settings
+import logging
 # 데이터베이스 테이블 생성
 Base.metadata.create_all(bind=engine)
 
@@ -28,7 +29,10 @@ def custom_generate_unique_id(route: APIRoute) -> str:
 # Sentry 설정 (필요시 활성화)
 # if settings.SENTRY_DSN and settings.ENVIRONMENT != "local":
 #     sentry_sdk.init(dsn=str(settings.SENTRY_DSN), enable_tracing=True)
+logging.basicConfig(level=logging.DEBUG,  # 로그 레벨을 DEBUG로 설정
+                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
+logger = logging.getLogger(__name__)
 
 # 애플리케이션 인스턴스를 생성
 app = FastAPI(
@@ -43,17 +47,26 @@ jwt_authentication = JWTAuthentication(jwt_service)
 
 @app.middleware("http")
 async def jwt_middleware(request: Request, call_next):
-    if request.url.path.startswith("/docs") or request.url.path.startswith("/retriever") or request.url.path.startswith("/retriever/openapi.json") or request.url.path.startswith("/token"):   # "/public" 경로는 미들웨어 적용 제외
+    if request.url.path.startswith("/docs") or request.url.path.startswith("/retriever") or request.url.path.startswith("/retriever/openapi.json") or request.url.path.startswith("/retriever/user_info") :   # "/public" 경로는 미들웨어 적용 제외
         response = await call_next(request)
         return response
     response = Response("Internal server error", status_code=500)
     try:
         db = next(get_db())
-        await jwt_authentication.authenticate_user(request, response, db)
-        response = await call_next(request)
-        request.state.user = request.state.user
+        user = await jwt_authentication.authenticate_user(request, response, db)
+        # `admin` 역할의 사용자는 모든 요청을 허용
+        if user and user.role == "admin" or user and user.role == "user":
+            request.state.user = user  # 사용자 정보를 state에 저장
+            response = await call_next(request)
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Only admin users are allowed to access this resource.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
     except HTTPException as e:
         response = JSONResponse(status_code=e.status_code, content={"detail": e.detail})
+    
     return response
 # # Set all CORS enabled origins
 # 미들웨어를 추가하여 지정된 원본에서 오는 요청을 허용
