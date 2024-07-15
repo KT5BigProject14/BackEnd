@@ -5,7 +5,7 @@ from typing import List
 from models import Base, User as UserModel, UserInfo as UserInfoModel
 from core.database import engine, get_db
 from crud.login_crud import create_user_db, create_user_info_db, get_user, get_users, authenticate_user, email_auth, update_email_auth, create_email_auth\
-    ,update_is_active,create_google_user,update_new_random_password
+    ,update_is_active,create_google_user,update_new_random_password,create_admin
 from crud.info_crud import get_user_info_db
 from schemas import User, UserCreate, UserInfo, UserInfoCreate, UserBase, JWTEncoder, JWTDecoder, SendEmail, MessageOk, CheckEmail, CheckCode
 from typing import Annotated, Any
@@ -269,3 +269,7 @@ def read_user(email: str, db: Session = Depends(get_db)):
     return db_user
 
 
+@router.post("/users/signup/admin")
+def create_user(user: UserBase, db: Session = Depends(get_db)):
+    create_admin(db=db, user=user)
+    return HTTPException(status_code=200,detail="signup success")
