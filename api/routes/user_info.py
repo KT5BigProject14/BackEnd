@@ -40,6 +40,7 @@ def read_user_info(email: str, request: Request, db: Session = Depends(get_db)):
 @router.post("/create/user_info")
 def create_user_info(user_info: UserInfoBase, db: Session = Depends(get_db)):
     user_info = create_user_info_db(db =db, user_info =user_info)
+    # change_user_role = 
     return HTTPException(status_code=200, detail="create user info")
 
 @router.put("/user_info/")
