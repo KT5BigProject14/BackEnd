@@ -2,10 +2,19 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from models import UserInfo
 from core.database import engine, get_db
+from crud.login_crud import authenticate_user, update_password
 from crud.info_crud import update_user_info_db, get_user_info_db, create_user_info_db
 from schemas import UserInfoBase, User
 from fastapi import Security, Request
 from fastapi.security import OAuth2PasswordBearer
+from starlette.background import BackgroundTasks
+from starlette.requests import Request
+from schemas import SendEmail, MessageOk, ChangePassword
+import secrets
+import yagmail
+from crud.login_crud import email_auth, update_email_auth
+from core.config import settings
+
 router = APIRouter()
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/retriever/users/login")
@@ -21,9 +30,10 @@ def verify_header(token: str = Depends(oauth2_scheme)) -> str:
     return token
 
 # request에 담겨있는 토큰 파싱한 유저 정보로 email 찾음
-@router.get("/user_info/{email}")
-def read_user_info(email: str, request: Request, db: Session = Depends(get_db)):
-    db_user_info = get_user_info_db(db = db,user= email )
+@router.get("/user_info")
+def read_user_info(request: Request, db: Session = Depends(get_db), token: str = Depends(verify_header)):
+    print(request.state.user)
+    db_user_info = get_user_info_db(db = db,user= request.state.user.email )
     if db_user_info is None:
         raise HTTPException(status_code=404, detail="User Info not found")
     return db_user_info
@@ -37,4 +47,10 @@ def create_user_info(user_info: UserInfoBase, db: Session = Depends(get_db)):
 def update_user_info(user_info: UserInfoBase ,db: Session = Depends(get_db), token: str = Depends(verify_header)):
     update_user_info_db(db, user_info)
     return HTTPException(status_code=200, detail="update_user_info")
-    
+
+@router.post("/change/password")
+async def email_by_gmail(password:ChangePassword ,db: Session = Depends(get_db)):
+    confirm_password = authenticate_user(db, password)
+    if confirm_password:
+        update_password(db, password)
+    return HTTPException(status_code=status.HTTP_200_OK, detail="change password successful")

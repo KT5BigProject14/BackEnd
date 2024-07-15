@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from models import User as UserModel, UserInfo as UserInfoModel , emailAuth 
-from schemas import UserCreate , UserInfoCreate, User, UserBase, SendEmail, CheckEmail, CheckCode , UserInfoBase
+from schemas import UserCreate , UserInfoCreate, User, UserBase, SendEmail, CheckEmail, CheckCode , UserInfoBase, ChangePassword
 from passlib.context import CryptContext
 from fastapi import FastAPI, Depends, HTTPException
 from typing import Annotated
@@ -31,5 +31,3 @@ def update_user_info_db(db: Session, user_info: UserInfoBase):
     db_user_info.user_name = user_info.user_name
     db.commit()
     db.refresh(db_user_info)
-
-
