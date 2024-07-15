@@ -62,7 +62,7 @@ GetCurrentUser = Annotated[User, Depends(get_current_user)]
 
 @router.post("/upload")
 async def upload_qna(email: Annotated[str, Form()], title: Annotated[str, Form()], content: Annotated[str, Form()], images: List[UploadFile] = File([]), db: Session = Depends(get_db)):
-    qna_data = {"qna_email": email, "title": title, "content": content}
+    qna_data = {"email": email, "title": title, "content": content}
     qna = Qna(**qna_data)  # Qna 모델 인스턴스 생성
     # qna 글 저장 return 값은 해당글 정보
     created_qna = create_qna(db=db, qna=qna)
@@ -95,7 +95,7 @@ async def load_qna(qna_id: int ,db: Session = Depends(get_db)):
         qna_dict = {
             "title": result['qna'].title,
             "content": result['qna'].content,
-            "qna_email": result['qna'].email,
+            "email": result['qna'].email,
             "qna_id": result['qna'].qna_id,
             "created_at": result['qna'].created_at.isoformat()
         }
@@ -123,17 +123,17 @@ async def load_qna(qna_id: int ,db: Session = Depends(get_db)):
     
 @router.put("/update_qna")
 async def update_qna(
-    email: EmailStr,
+    user_email: EmailStr,
     qna_id: Annotated[int, Form()],
-    qna_email: Annotated[str, Form()],
+    email: Annotated[str, Form()],
     title: Annotated[str, Form()],
     content: Annotated[str, Form()],
     image: Optional[List[UploadFile]] = File([]),
     db: Session = Depends(get_db)
 ):
-    if qna_email == email:
+    if user_email == email:
         # QnA 데이터 처리 로직
-        qna_data = {"qna_id": qna_id, "qna_email": qna_email, "title": title, "content": content}
+        qna_data = {"qna_id": qna_id, "email": email, "title": title, "content": content}
         qna = CheckQna(**qna_data)
         result = db_update_qna(qna=qna, db=db)
         
@@ -155,8 +155,8 @@ async def update_qna(
         raise HTTPException(status_code=400, detail="You are not the writer")
     
 @router.delete("/delete_qna")
-async def load_qna(qna: CheckQna ,email: EmailStr ,db: Session = Depends(get_db)):
-    if qna.qna_email == email:
+async def load_qna(qna: CheckQna ,user_email: EmailStr ,db: Session = Depends(get_db)):
+    if qna.email == user_email:
         deleted_images = delete_img(qna, db)
         delete_qna(qna,db)
         for deleted_img in deleted_images:
@@ -180,9 +180,9 @@ async def load_qna(comment: CheckComment ,email: EmailStr ,db: Session = Depends
         raise HTTPException(status_code=400, detail="you are not writer")
              
 @router.delete("/delete/comment")
-async def load_qna(qna: CheckComment ,email: EmailStr ,db: Session = Depends(get_db)):
-    if qna.email == email:
-        delete_comment(qna,db)
+async def load_qna(comment: CheckComment ,email: EmailStr ,db: Session = Depends(get_db)):
+    if comment.email == email:
+        delete_comment(comment,db)
         return HTTPException(status_code=200, detail="delete_sucess")   
     else:
         raise HTTPException(status_code=400, detail="you are not writer")  

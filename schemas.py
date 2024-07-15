@@ -110,7 +110,7 @@ class CheckCode(SendEmail):
 
 
 class Qna(BaseModel):
-    qna_email: EmailStr
+    email: EmailStr
     title: str
     content: str
 
