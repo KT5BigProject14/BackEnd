@@ -120,6 +120,7 @@ async def load_qna(qna_id: int ,db: Session = Depends(get_db)):
         return JSONResponse(content=response_content)
     else:
         return {"result": result, "comment": comments}
+    
 @router.put("/update_qna")
 async def update_qna(
     email: EmailStr,
@@ -132,7 +133,7 @@ async def update_qna(
 ):
     if qna_email == email:
         # QnA 데이터 처리 로직
-        qna_data = {"qna_id": qna_id, "email": qna_email, "title": title, "content": content}
+        qna_data = {"qna_id": qna_id, "qna_email": qna_email, "title": title, "content": content}
         qna = CheckQna(**qna_data)
         result = db_update_qna(qna=qna, db=db)
         
@@ -155,7 +156,7 @@ async def update_qna(
     
 @router.delete("/delete_qna")
 async def load_qna(qna: CheckQna ,email: EmailStr ,db: Session = Depends(get_db)):
-    if qna.email == email:
+    if qna.qna_email == email:
         deleted_images = delete_img(qna, db)
         delete_qna(qna,db)
         for deleted_img in deleted_images:

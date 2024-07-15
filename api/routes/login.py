@@ -5,7 +5,7 @@ from typing import List
 from models import Base, User as UserModel, UserInfo as UserInfoModel
 from core.database import engine, get_db
 from crud.login_crud import create_user_db, create_user_info_db, get_user, get_users, authenticate_user, email_auth, update_email_auth, create_email_auth\
-    ,update_is_active,create_google_user
+    ,update_is_active,create_google_user,update_new_random_password
 from crud.info_crud import get_user_info_db
 from schemas import User, UserCreate, UserInfo, UserInfoCreate, UserBase, JWTEncoder, JWTDecoder, SendEmail, MessageOk, CheckEmail, CheckCode
 from typing import Annotated, Any
@@ -33,6 +33,7 @@ import urllib.parse
 from jwt import PyJWKClient
 from fastapi.responses import RedirectResponse
 from pydantic import EmailStr
+import random
 # from models import MessageOk, SendEmail
 # import boto3
 # from botocore.exceptions import ClientError
@@ -184,6 +185,21 @@ async def email_by_gmail(request: Request, mail: SendEmail, background_tasks: Ba
         create_email_auth(db,mail,verify_code = verification_code)
     return MessageOk()
 
+@router.post("/find/password/send_by_gmail")
+async def find_password_by_email(request: Request, mail: SendEmail, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    # email_auth DB조회
+    selected_email = email_auth(db,mail)
+    # 이미 회원가입을 끝낸유저만 찾기가 가능
+    if selected_email and selected_email.is_active == True:
+        verification_code = ''.join(secrets.choice("0123456789") for _ in range(6))
+        background_tasks.add_task(send_email, mail = mail.email,verification_code=verification_code)
+        update_email_auth(db,mail,verification_code)
+    else:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="user not found")
+
+
+#회원가입 이메일 검증
+#비밀번호 찾기 이메일 검증
 @router.put("/email/check_code")
 async def check_code(user_code: CheckCode, db: Session = Depends(get_db)):
     selected_email = email_auth(db,user_code)
@@ -193,10 +209,15 @@ async def check_code(user_code: CheckCode, db: Session = Depends(get_db)):
     elif selected_email.verify_number == user_code.verify_code:
         raise  HTTPException(status_code=status.HTTP_200_OK, detail="verify_code is same")
     else:
-        raise  HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="verify_code is same")
+        raise  HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="verify_code is different")
         
-    
-
+@router.post("/send/new/password")
+async def send_new_password(request: Request, mail: SendEmail, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    characters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*"
+    new_password = ''.join(random.choice(characters) for _ in range(10))
+    update_new_random_password(mail,new_password,db)
+    background_tasks.add_task(send_new_password, mail = mail.email,new_password=new_password)
+    return HTTPException(status_code=status.HTTP_200_OK, detail="password change")
 
 
 async def send_email(**kwargs):
@@ -215,7 +236,22 @@ async def send_email(**kwargs):
         yag.send(mail, '[Retriever]이메일 인증을 위한 인증번호를 안내 드립니다.', contents)
     except Exception as e:
         print(e)
-
+        
+async def send_new_password(**kwargs):
+    mail = kwargs.get("mail", None)
+    new_password = kwargs.get("new_password", None)
+    email_pw = settings.EMAIL_PW
+    email_addr = settings.EMAIL_ADDR
+    try:
+        yag = yagmail.SMTP({email_addr: "Retriever"}, email_pw)
+        with open('templates/smtp_password_template.html', 'r', encoding='utf-8') as file:
+            html_template = file.read()
+        html_content = html_template.format(new_password=new_password)
+        contents = [html_content]
+        yag.send(mail, '[Retriever]새로운 비밀번호를 알려드립니다.', contents)
+    except Exception as e:
+        print(e)
+        
 @router.post("/users/logout")
 async def logout_user(response: Response, request: Request):
     refresh_token = request.cookies.get("refresh_token")

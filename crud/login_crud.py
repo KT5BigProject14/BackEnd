@@ -1,9 +1,9 @@
 from sqlalchemy.orm import Session
 from models import User as UserModel, UserInfo as UserInfoModel , emailAuth 
-from schemas import UserCreate , UserInfoCreate, User, UserBase, SendEmail, CheckEmail, CheckCode , UserInfoBase
+from schemas import UserCreate , UserInfoCreate, User, UserBase, SendEmail, CheckEmail, CheckCode , UserInfoBase, ChangePassword
 from passlib.context import CryptContext
 from fastapi import FastAPI, Depends, HTTPException
-
+from pydantic import EmailStr
 bcrypt_context = CryptContext(schemes=['bcrypt'], deprecated = 'auto')
 
 def create_user_db(db: Session, user: UserBase):
@@ -82,5 +82,21 @@ def update_is_active(db: Session, user: UserCreate):
     db.commit()
     db.refresh(email_auth_db)
 
-    
-    
+def update_new_random_password(email:EmailStr,new_password:str, db:Session):
+    hashed_password = bcrypt_context.hash(new_password)
+    user = db.query(UserModel).filter(UserModel.email == email).first()
+    if user is None:
+        return None
+    user.password = hashed_password
+    db.commit()
+    db.refresh(user)
+
+def update_password(db:Session, password:ChangePassword):
+    hashed_password = bcrypt_context.hash(password.new_password)
+    db_user = db.query(UserModel).filter(UserModel.email == password.email).first()
+    if db_user is None:
+        raise HTTPException(status_code=404, detail="user not found")
+    db_user.password = hashed_password
+    db.commit()
+    db.refresh(db_user)
+        

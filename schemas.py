@@ -110,7 +110,7 @@ class CheckCode(SendEmail):
 
 
 class Qna(BaseModel):
-    email: EmailStr
+    qna_email: EmailStr
     title: str
     content: str
 
@@ -127,6 +127,11 @@ class Comment(BaseModel):
     
 class CheckComment(Comment):
     comment_id: int
+
+class ChangePassword(BaseModel):
+    email: EmailStr
+    password: str
+    new_password: str
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "My FastAPI Project"
