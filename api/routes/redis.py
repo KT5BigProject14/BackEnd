@@ -17,27 +17,28 @@ class all_messagesResponse(BaseModel):
 
 # 메시지를 정리하고 저장하는 함수
 def extract_and_sort_messages(messages):
-    # 숫자가 아닌 메시지 추출
-    messages = [msg for msg in messages if not msg.isdigit()]
-
-    # 메시지에서 시간과 내용을 분리하여 리스트로 저장
-    messages_with_time = []
-    for msg in messages:
+    # 숫자와 메시지를 짝지어 저장
+    paired_messages = []
+    for i in range(0, len(messages), 2):
+        number = messages[i]
+        message = messages[i + 1]
         match = re.match(
-            r'(\d{4}\.\d{2}\.\d{2} \d{2}:\d{2}:\d{2}) - (.+)', msg)
+            r'(\d{4}\.\d{2}\.\d{2} \d{2}:\d{2}:\d{2}) - (.+)', message)
         if match:
             time_str = match.group(1)
             message_text = match.group(2)
-            messages_with_time.append([time_str, message_text])
+            paired_messages.append([number, message_text, time_str])
 
     # 시간순으로 정렬
     sorted_messages = sorted(
-        messages_with_time, key=lambda x: datetime.strptime(x[0], '%Y.%m.%d %H:%M:%S'))
+        paired_messages, key=lambda x: datetime.strptime(x[2], '%Y.%m.%d %H:%M:%S'))
 
-    # 정렬된 결과를 단순 리스트 형태로 변환
+    # 정렬된 결과를 원하는 형식으로 변환
     result = []
     for message in sorted_messages:
-        result.extend(message)  # 시간을 리스트에 추가
+        result.append(message[0])  # 숫자 추가
+        result.append(message[1])  # 메시지 추가
+        result.append(message[2])  # 시간 추가
 
     return result
 
