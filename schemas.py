@@ -34,7 +34,6 @@ class JwtUser(BaseModel):
 
 
 class UserInfoBase(BaseModel):
-    email: EmailStr
     corporation: str
     business_number: int
     position: str
@@ -121,15 +120,14 @@ class CheckQna(Qna):
     qna_id : int
     
 class Comment(BaseModel):
-    email: EmailStr
     qna_id : int
     content : str
     
 class CheckComment(Comment):
+    email: EmailStr
     comment_id: int
 
 class ChangePassword(BaseModel):
-    email: EmailStr
     password: str
     new_password: str
 

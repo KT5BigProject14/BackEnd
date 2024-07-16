@@ -21,3 +21,6 @@ router = APIRouter()
 # @router.get("/test")
 # def test(user: Annotated[JwtUser, Depends(get_current_user)]):
 #     return user
+
+# request: Request
+# print(request.state.user)

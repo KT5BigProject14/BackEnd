@@ -55,8 +55,8 @@ def delete_qna(qna: CheckQna, db:Session):
     db.delete(qna_to_delete)
     db.commit()
     
-def create_comment(comment: Comment, db: Session):
-    new_comment = Comment(qna_id = comment.qna_id, email = comment.email, content = comment.content)
+def create_comment(comment: Comment, email: EmailStr, db: Session):
+    new_comment = Comment(qna_id = comment.qna_id, email = email, content = comment.content)
     db.add(new_comment)
     db.commit()
     db.refresh(new_comment)

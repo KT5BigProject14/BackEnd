@@ -7,8 +7,8 @@ api_router = APIRouter()
 
 # get_current_user = JWTAuthentication(jwt_service)
 
-
-api_router.include_router(login.router, tags=["login"])
+"retriever/news/"
+api_router.include_router(login.router,prefix="/login", tags=["login"])
 api_router.include_router(news.router, prefix="/news", tags=["news"])
 api_router.include_router(redis.router, prefix="/redis", tags=["redis"])
 api_router.include_router(

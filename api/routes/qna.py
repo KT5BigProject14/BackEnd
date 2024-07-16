@@ -22,6 +22,8 @@ from PIL import Image, ImageOps
 from boto3 import client
 from core.config import settings
 from pydantic import BaseModel, EmailStr
+from starlette.requests import Request
+
 router = APIRouter()
 
 # File을 그냥 Optional로 지정했음
@@ -61,8 +63,9 @@ GetCurrentUser = Annotated[User, Depends(get_current_user)]
 
 
 @router.post("/upload")
-async def upload_qna(email: Annotated[str, Form()], title: Annotated[str, Form()], content: Annotated[str, Form()], images: List[UploadFile] = File([]), db: Session = Depends(get_db)):
-    qna_data = {"email": email, "title": title, "content": content}
+async def upload_qna(request: Request,title: Annotated[str, Form()], content: Annotated[str, Form()], images: List[UploadFile] = File([]), db: Session = Depends(get_db)):
+    
+    qna_data = {"email": request.state.user.email, "title": title, "content": content}
     qna = Qna(**qna_data)  # Qna 모델 인스턴스 생성
     # qna 글 저장 return 값은 해당글 정보
     created_qna = create_qna(db=db, qna=qna)
@@ -76,12 +79,17 @@ async def upload_qna(email: Annotated[str, Form()], title: Annotated[str, Form()
     return HTTPException(status_code=status.HTTP_200_OK, detail="upload successful" )
 
 @router.get("/user_all_qna")
-async def load_user_all_qna(email:EmailStr, db: Session = Depends(get_db)):
-    return user_all_qna(db,email)
-
-@router.get("/admin_all_qna")
-async def load_admin_all_qna(db: Session = Depends(get_db)):
-    return admin_all_qna(db)
+async def load_user_all_qna(request: Request, db: Session = Depends(get_db)):
+    user = request.state.user
+    if user.role == "user":
+        return user_all_qna(db, user.email)
+    elif user.role =="admin":
+        return admin_all_qna(db)
+    else:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="you are not authorized")
+# @router.get("/admin_all_qna")
+# async def load_admin_all_qna(db: Session = Depends(get_db)):
+#     return admin_all_qna(db)
 
 @router.get("/load_qna/{qna_id}")
 async def load_qna(qna_id: int, db: Session = Depends(get_db)):
@@ -128,7 +136,7 @@ async def load_qna(qna_id: int, db: Session = Depends(get_db)):
 
 @router.put("/update_qna")
 async def update_qna(
-    user_email: EmailStr,
+    request:Request,
     qna_id: Annotated[int, Form()],
     email: Annotated[str, Form()],
     title: Annotated[str, Form()],
@@ -136,7 +144,8 @@ async def update_qna(
     image: List[UploadFile] = File([]),
     db: Session = Depends(get_db)
 ):
-    if user_email == email:
+    user = request.state.user
+    if user.email == email:
         # QnA 데이터 처리 로직
         qna_data = {"qna_id": qna_id, "email": email, "title": title, "content": content}
         qna = CheckQna(**qna_data)
@@ -160,8 +169,9 @@ async def update_qna(
         raise HTTPException(status_code=400, detail="You are not the writer")
     
 @router.delete("/delete_qna")
-async def load_qna(qna: CheckQna ,user_email: EmailStr ,db: Session = Depends(get_db)):
-    if qna.email == user_email:
+async def load_qna(qna: CheckQna ,request:Request ,db: Session = Depends(get_db)):
+    user = request.state.user
+    if qna.email == user.email or user.role == "admin":
         deleted_images = delete_img(qna, db)
         delete_qna(qna,db)
         for deleted_img in deleted_images:
@@ -172,21 +182,24 @@ async def load_qna(qna: CheckQna ,user_email: EmailStr ,db: Session = Depends(ge
         raise HTTPException(status_code=400, detail="you are not writer")  
 
 @router.post("/upload/comment")
-async def upload_qna(comment: Comment,db: Session = Depends(get_db)):
-    comment = create_comment(db=db, comment = comment)
+async def upload_qna(request: Request, comment: Comment,db: Session = Depends(get_db)):
+    user = request.state.user
+    comment = create_comment(db=db, comment = comment, email = user.email )
     return comment
 
 @router.put("/update/comment")
-async def load_qna(comment: CheckComment ,email: EmailStr ,db: Session = Depends(get_db)):
-    if comment.email == email:
+async def load_qna(request: Request, comment: CheckComment  ,db: Session = Depends(get_db)):
+    user = request.state.user
+    if comment.email == user.email:
         result = update_comment(comment,db)
         return result   
     else:
         raise HTTPException(status_code=400, detail="you are not writer")
              
 @router.delete("/delete/comment")
-async def load_qna(comment: CheckComment ,email: EmailStr ,db: Session = Depends(get_db)):
-    if comment.email == email:
+async def load_qna(comment: CheckComment ,request: Request ,db: Session = Depends(get_db)):
+    user = request.state.user
+    if comment.email == user.email:
         delete_comment(comment,db)
         return HTTPException(status_code=200, detail="delete_sucess")   
     else:

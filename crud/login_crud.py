@@ -39,7 +39,7 @@ def get_user(db: Session, email: str):
 def get_users(db: Session, skip: int = 0, limit: int = 10):
     return db.query(UserModel).offset(skip).limit(limit).all()
 
-def authenticate_user(db: Session, user:User ):
+def authenticate_user(db: Session, user:User):
     find_user = db.query(UserModel).filter(UserModel.email == user.email).first()
     if not find_user:
         raise HTTPException(
