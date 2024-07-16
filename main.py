@@ -47,16 +47,16 @@ jwt_authentication = JWTAuthentication(jwt_service)
 
 @app.middleware("http")
 async def jwt_middleware(request: Request, call_next):
-    if request.url.path.startswith("/docs") or request.url.path.startswith("/retriever") or request.url.path.startswith("/retriever/openapi.json") or request.url.path.startswith("/retriever/user_info") :   # "/public" 경로는 미들웨어 적용 제외
+    if request.url.path.startswith("/docs") or request.url.path.startswith("/retriever/login") or request.url.path.startswith("/retriever/openapi.json"):
         response = await call_next(request)
         return response
+
     response = Response("Internal server error", status_code=500)
     try:
         db = next(get_db())
         user = await jwt_authentication.authenticate_user(request, response, db)
-        # `admin` 역할의 사용자는 모든 요청을 허용
-        if user and user.role == "admin" or user and user.role == "user":
-            request.state.user = user  # 사용자 정보를 state에 저장
+        if user and (user.role == "admin" or user.role == "user"):
+            request.state.user = user
             response = await call_next(request)
         else:
             raise HTTPException(
@@ -66,7 +66,7 @@ async def jwt_middleware(request: Request, call_next):
             )
     except HTTPException as e:
         response = JSONResponse(status_code=e.status_code, content={"detail": e.detail})
-    
+
     return response
 # # Set all CORS enabled origins
 # 미들웨어를 추가하여 지정된 원본에서 오는 요청을 허용

@@ -47,7 +47,6 @@ class JWTAuthentication:
         response: Response,
         db: Session
     ) -> User:
-        # Authorization 헤더에서 Bearer 토큰 추출
         authorization = request.headers.get("Authorization")
         if authorization:
             scheme, token = get_authorization_scheme_param(authorization)
@@ -55,36 +54,30 @@ class JWTAuthentication:
                 valid_payload = self.jwt_service.check_token_expired(token)
                 if valid_payload:
                     email = valid_payload.get("email")
-                    role = valid_payload.get("role")  # role 정보 가져오기
+                    role = valid_payload.get("role")
                     if role == "guest":
                         raise HTTPException(
                             status_code=status.HTTP_401_UNAUTHORIZED,
-                            detail="you are guest user, please insert your profile",
+                            detail="You are a guest user, please insert your profile.",
                             headers={"WWW-Authenticate": "Bearer"},
                         )
-                    # 사용자 정보 조회
                     user = login_crud.get_user(db, email)
                     if user is None:
                         raise HTTPException(
                             status_code=status.HTTP_401_UNAUTHORIZED,
-                            detail="Non-existent user",
+                            detail="Non-existent user.",
                             headers={"WWW-Authenticate": "Bearer"},
                         )
-
-                    # 사용자 정보를 request.state에 저장
                     request.state.user = user
-
+                    return user
                 else:
-                    # 토큰이 만료되었으면 refresh_token 확인
                     refresh_token = request.cookies.get("refresh_token")
                     if refresh_token:
                         refresh_payload = self.jwt_service.check_token_expired(refresh_token)
                         if refresh_payload:
                             email = refresh_payload.get("email")
                             role = refresh_payload.get("role")
-
                             new_access_token = self.jwt_service.create_access_token({"email": email, "role": role})
-                            # 새 access_token을 JSON 응답으로 반환
                             raise HTTPException(
                                 status_code=status.HTTP_401_UNAUTHORIZED,
                                 detail="Access token expired. New token issued.",
@@ -103,11 +96,9 @@ class JWTAuthentication:
                             headers={"WWW-Authenticate": "Bearer"},
                         )
         else:
-            # Authorization 헤더가 없는 경우
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Missing Authorization header",
+                detail="Missing Authorization header.",
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
-        return request.state.user

@@ -6,8 +6,8 @@ from fastapi import FastAPI, Depends, HTTPException
 from typing import Annotated
 from pydantic import EmailStr
 
-def create_user_info_db(db: Session, user_info: UserInfoBase):
-    db_user_info = UserInfoModel(email = user_info.email, corporation = user_info.corporation, business_number = user_info.business_number, 
+def create_user_info_db(db: Session, user_info: UserInfoBase, email: EmailStr):
+    db_user_info = UserInfoModel(email = email, corporation = user_info.corporation, business_number = user_info.business_number, 
                                  position =user_info.position, phone = user_info.phone, user_name = user_info.user_name)
     db.add(db_user_info)
     db.commit()
@@ -21,8 +21,8 @@ def get_user_info_db(db: Session, user: EmailStr):
     else:
         return db_user_info
 
-def update_user_info_db(db: Session, user_info: UserInfoBase):
-    db_user_info = db.query(UserInfoModel).filter(UserInfoModel.email == user_info.email).first()
+def update_user_info_db(db: Session, user_info: UserInfoBase, user_email: EmailStr):
+    db_user_info = db.query(UserInfoModel).filter(UserInfoModel.email == user_email).first()
     if db_user_info is None:
         return None
     db_user_info.corporation = user_info.corporation, 
