@@ -130,7 +130,7 @@ async def auth_google(request: Request, response: Response, db: Session = Depend
     
     db_user = get_user(db, user_info['email'])
     if not db_user:
-        create_google_user(db=db, user=user_info['email'])
+        db_user=create_google_user(db=db, user=user_info['email'])
     db_user_info = get_user_info_db(db= db, user=user_info['email'] )
     if db_user_info:
         data = {"email": str(user_info['email']), "name": db_user_info.user_name, "role": db_user.role}

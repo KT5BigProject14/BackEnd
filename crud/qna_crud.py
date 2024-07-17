@@ -5,7 +5,7 @@ from passlib.context import CryptContext
 from fastapi import FastAPI, Depends, HTTPException
 from typing import Annotated
 def create_qna(db: Session, qna: Qna):
-    qna = QnA(email=qna.qna_email, title=qna.title, content = qna.content)
+    qna = QnA(email=qna.email, title=qna.title, content = qna.content)
     db.add(qna)
     db.commit()
     db.refresh(qna)
@@ -25,7 +25,7 @@ def get_qna(db:Session, qna_id : int):
     qna = db.query(QnA).filter(QnA.qna_id == qna_id).first()
     qna_image = db.query(Image.image_name).filter(Image.qna_id == qna_id).all()
     qna_image = [name[0] for name in qna_image]
-    return {"qna":qna, "qna_image":qna_image}
+    return {"qna":qna, "qna_images":qna_image}
 
 def db_update_qna(qna: CheckQna, db: Session):
     db_qna = db.query(QnA).filter(QnA.qna_id == qna.qna_id).first()

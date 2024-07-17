@@ -20,6 +20,7 @@ def create_google_user(db:Session, user: str):
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
+    return db_user
     
 
 
