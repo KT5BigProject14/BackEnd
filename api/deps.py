@@ -46,7 +46,7 @@ class JWTAuthentication:
         request: Request,
         response: Response,
         db: Session
-    ) -> User:
+    ) -> dict:
         authorization = request.headers.get("Authorization")
         if authorization:
             scheme, token = get_authorization_scheme_param(authorization)
@@ -55,12 +55,29 @@ class JWTAuthentication:
                 if valid_payload:
                     email = valid_payload.get("email")
                     role = valid_payload.get("role")
+                    type = valid_payload.get('type')  # 'type'으로 변수명 변경
+
                     if role == "guest":
-                        raise HTTPException(
-                            status_code=status.HTTP_401_UNAUTHORIZED,
-                            detail="You are a guest user, please insert your profile.",
-                            headers={"WWW-Authenticate": "Bearer"},
-                        )
+                        # Check if the current endpoint is '/retriever/info/create/user'
+                        if request.url.path == "/retriever/info/create/user":
+                            user = login_crud.get_user(db, email)
+                            if user is None:
+                                raise HTTPException(
+                                    status_code=status.HTTP_401_UNAUTHORIZED,
+                                    detail="Non-existent user.",
+                                    headers={"WWW-Authenticate": "Bearer"},
+                                )
+                            # Set request.state.user to the token's payload dictionary
+                            request.state.user = user
+                            request.state.type = type
+                            return request.state.user
+                        else:
+                            raise HTTPException(
+                                status_code=status.HTTP_401_UNAUTHORIZED,
+                                detail="You are a guest user and cannot access this resource.",
+                                headers={"WWW-Authenticate": "Bearer"},
+                            )
+
                     user = login_crud.get_user(db, email)
                     if user is None:
                         raise HTTPException(
@@ -68,8 +85,10 @@ class JWTAuthentication:
                             detail="Non-existent user.",
                             headers={"WWW-Authenticate": "Bearer"},
                         )
+                    # Set request.state.user to the token's payload dictionary
                     request.state.user = user
-                    return user
+                    request.state.type = type
+                    return request.state.user
                 else:
                     refresh_token = request.cookies.get("refresh_token")
                     if refresh_token:
@@ -77,7 +96,8 @@ class JWTAuthentication:
                         if refresh_payload:
                             email = refresh_payload.get("email")
                             role = refresh_payload.get("role")
-                            new_access_token = self.jwt_service.create_access_token({"email": email, "role": role})
+                            type = refresh_payload.get('type')
+                            new_access_token = self.jwt_service.create_access_token({"email": email, "role": role, "type": type})
                             raise HTTPException(
                                 status_code=status.HTTP_401_UNAUTHORIZED,
                                 detail="Access token expired. New token issued.",
@@ -101,4 +121,5 @@ class JWTAuthentication:
                 detail="Missing Authorization header.",
                 headers={"WWW-Authenticate": "Bearer"},
             )
+
 

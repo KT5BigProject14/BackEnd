@@ -1,5 +1,5 @@
 import service.images as images
-from crud.qna_crud import create_qna, create_qna_image,get_qna, db_update_qna, delete_qna, delete_img, create_comment, get_comment, update_comment, delete_comment, user_all_qna,admin_all_qna
+from crud.qna_crud import create_qna, create_qna_image,get_qna, db_update_qna, db_delete_qna, delete_img, create_comment, get_comment, update_comment, delete_comment, user_all_qna,admin_all_qna
 from schemas import Qna, CheckQna, Comment, CheckComment
 from fastapi.security import OAuth2PasswordBearer
 from fastapi import APIRouter, UploadFile, HTTPException, status, Depends, Form
@@ -78,7 +78,7 @@ async def upload_qna(request: Request,title: Annotated[str, Form()], content: An
         image_filenames.append(filename)
     return HTTPException(status_code=status.HTTP_200_OK, detail="upload successful" )
 
-@router.get("/user_all_qna")
+@router.get("/load/all/qna")
 async def load_user_all_qna(request: Request, db: Session = Depends(get_db)):
     user = request.state.user
     if user.role == "user":
@@ -134,7 +134,7 @@ async def load_qna(qna_id: int, db: Session = Depends(get_db)):
     }
     return JSONResponse(content=response_content)
 
-@router.put("/update_qna")
+@router.put("/edit")
 async def update_qna(
     request:Request,
     qna_id: Annotated[int, Form()],
@@ -153,9 +153,10 @@ async def update_qna(
         
         # 이미지 처리 로직
         deleted_images = delete_img(qna, db)
-        for deleted_imgs in deleted_images:
-            filename = deleted_imgs.image_name
-            images.delete_file_from_filesystem(f"./img/{filename}")
+        if deleted_images:
+            for deleted_imgs in deleted_images:
+                filename = deleted_imgs.image_name
+                images.delete_file_from_filesystem(f"./img/{filename}")
 
         image_filenames = []
         if image:
@@ -168,15 +169,16 @@ async def update_qna(
     else:
         raise HTTPException(status_code=400, detail="You are not the writer")
     
-@router.delete("/delete_qna")
-async def load_qna(qna: CheckQna ,request:Request ,db: Session = Depends(get_db)):
+@router.delete("/delete")
+async def delete_qna(qna: CheckQna ,request:Request ,db: Session = Depends(get_db)):
     user = request.state.user
     if qna.email == user.email or user.role == "admin":
         deleted_images = delete_img(qna, db)
-        delete_qna(qna,db)
-        for deleted_img in deleted_images:
-            filename = deleted_img.image_name
-            images.delete_file_from_filesystem(f"./img/{filename}")
+        db_delete_qna(qna,db)
+        if deleted_images:
+            for deleted_img in deleted_images:
+                filename = deleted_img.image_name
+                images.delete_file_from_filesystem(f"./img/{filename}")
         return HTTPException(status_code=200, detail="delete_sucess")   
     else:
         raise HTTPException(status_code=400, detail="you are not writer")  

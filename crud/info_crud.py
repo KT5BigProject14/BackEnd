@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from models import User as UserModel, UserInfo as UserInfoModel , emailAuth 
+from models import User as UserModel, UserInfo as UserInfoModel , EmailAuth 
 from schemas import UserCreate , UserInfoCreate, User, UserBase, SendEmail, CheckEmail, CheckCode , UserInfoBase, ChangePassword
 from passlib.context import CryptContext
 from fastapi import FastAPI, Depends, HTTPException

@@ -1,71 +1,59 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, BackgroundTasks, FastAPI
-from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
-from api.deps import JWTAuthentication
-from typing import Annotated
-from schemas import User, JwtUser
+from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.orm import Session
 from core.database import engine, get_db
-from api.deps import JWTService
-from schemas import JWTEncoder, JWTDecoder
-from core.config import settings
-import requests
-import httpx
-from typing import List
 from models import Docs, SessionLocal
-from pydantic import BaseModel
+from core.config import settings
+import httpx
 import uuid
-
-
+from typing import Optional
+from starlette.requests import Request as Requests
+from pydantic import BaseModel
 app = FastAPI()
 router = APIRouter()
 langserve_url = "http://localhost:8080/chain"
 
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
+# Pydantic 모델들
 class TitleRequest(BaseModel):
     question: str
-
 
 class TitleResponse(BaseModel):
     question: str
     title: str
 
-
 class TextRequest(BaseModel):
-    user_email: str
     title: str
-
 
 class TextResponse(BaseModel):
     docs_id: int
     text: str
 
+class ChatRequest(BaseModel):
+    session_id: Optional[str]
+    question: str
 
+class DocsSaveRequest(BaseModel):
+    docs_id: int
+
+class GetTextRequest(BaseModel):
+    docs_id: int
+
+# 채팅 엔드포인트
 @router.post("/chat")
-async def chat(request: Request):
+async def chat(request: Requests, chat_request: ChatRequest):
     try:
-        # 요청 본문을 JSON 형식으로 파싱
-        data = await request.json()
-        session_id = data.get('session_id')  # session_id가 없으면 None 반환
-        user_email = data['user_email']
-        question = data['question']
-
-        if session_id is None:
-            session_id = str(uuid.uuid4())
+        user = request.state.user
+        session_id = chat_request.session_id or str(uuid.uuid4())
+        user_email = user.email
+        question = chat_request.question
 
         # 모델 서버로 요청 보내기
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 langserve_url + "/chat",
                 json={'user_email': user_email,
-                      'session_id': session_id, 'question': question},
+                      'session_id': session_id,
+                      'question': question},
                 timeout=None
             )
 
@@ -82,19 +70,15 @@ async def chat(request: Request):
         raise HTTPException(status_code=500, detail=str(e))
     except httpx.HTTPStatusError as e:
         raise HTTPException(status_code=e.response.status_code, detail=str(e))
-    except KeyError as e:
-        raise HTTPException(status_code=400, detail=f"Missing field: {e}")
 
-
+# 제목 생성 엔드포인트
 @router.post("/title")
-async def generate_search_title(request: Request):
+async def generate_search_title(title_request: TitleRequest):
     try:
-        data = await request.json()
-
         # 첫 번째 서버로 요청 보내기
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                f"{langserve_url}/generate/title", json={"request": data["question"]}
+                f"{langserve_url}/generate/title", json={"request": title_request.question}
             )
 
         response.raise_for_status()
@@ -108,37 +92,36 @@ async def generate_search_title(request: Request):
         # Extract the quoted sentences and store them in a list
         title = [line.split('\"')[0] for line in lines]
 
-        return {"question": data, "title": title}
-    except requests.exceptions.RequestException as e:
-        print(f"요청 예외: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        return {"question": title_request.question, "title": title}
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=500, detail=f"Request failed: {e}")
     except Exception as e:
-        print(f"예외: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {e}")
 
-
+# 텍스트 생성 엔드포인트
 @router.post("/text", response_model=TextResponse)
-async def generate_search_text(request: TextRequest, db: Session = Depends(get_db)):
-    try:
+async def generate_search_text(request: Requests, text_request: TextRequest, db: Session = Depends(get_db)):
+    # try:
+        user = request.state.user
         # 랭서브로 요청 보내기
-        response = requests.post(
-            f"{langserve_url}/generate/text", json={"title": request.title})
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.post(
+                f"{langserve_url}/generate/text", json={"title": text_request.title}
+            )
+
         response.raise_for_status()
 
         # 랭서브로부터 결과 받기
         result = response.json()
 
-        print("DB 저장 전 데이터:", request.user_email,
-              request.title, result['response'])
+        print("DB 저장 전 데이터:", user.email, text_request.title, result['response'])
 
         # 결과 데이터 확인
         if 'response' not in result:
-            raise HTTPException(
-                status_code=500, detail="Invalid response format from the server")
+            raise HTTPException(status_code=500, detail="Invalid response format from the server")
 
         # db 저장
-        new_doc = Docs(email=request.user_email,
-                       title=request.title, content=result['response'])
+        new_doc = Docs(email=user.email, title=text_request.title, content=result['response'])
         db.add(new_doc)
         db.commit()
         db.refresh(new_doc)  # 새로 추가된 문서의 ID를 가져오기 위해 refresh
@@ -147,21 +130,18 @@ async def generate_search_text(request: TextRequest, db: Session = Depends(get_d
 
         # docs_id 포함하여 반환
         return {"docs_id": new_doc.docs_id, "text": result['response']}
-    except requests.exceptions.RequestException as e:
-        raise HTTPException(status_code=500, detail=f"Request failed: {e}")
-    except Exception as e:
-        db.rollback()  # 데이터베이스 변경 사항 롤백
-        raise HTTPException(
-            status_code=500, detail=f"An unexpected error occurred: {e}")
+    # except httpx.RequestError as e:
+    #     raise HTTPException(status_code=500, detail=f"Request failed: {e}")
+    # except Exception as e:
+    #     db.rollback()  # 데이터베이스 변경 사항 롤백
+    #     raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {e}")
 
-
+# 좋아요 저장 엔드포인트
 @router.post("/like")
-async def docs_save(request: Request, db: Session = Depends(get_db)):
+async def docs_save(docs_save_request: DocsSaveRequest, db: Session = Depends(get_db)):
     try:
-        data = await request.json()
-
         # 해당 문서를 찾습니다.
-        doc = db.query(Docs).filter(Docs.docs_id == data['docs_id']).one()
+        doc = db.query(Docs).filter(Docs.docs_id == docs_save_request.docs_id).one()
 
         # is_like 값을 반대로 바꿉니다. 0: 싫어요, 1: 좋아요
         doc.is_like = not doc.is_like
@@ -170,24 +150,22 @@ async def docs_save(request: Request, db: Session = Depends(get_db)):
         db.commit()
 
         return {"is_like": doc.is_like}
-    except requests.exceptions.RequestException as e:
+    except httpx.RequestError as e:
         raise HTTPException(status_code=500, detail=f"Request failed: {e}")
     except Exception as e:
         db.rollback()  # 데이터베이스 변경 사항 롤백
-        raise HTTPException(
-            status_code=500, detail=f"An unexpected error occurred: {e}")
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {e}")
     finally:
         db.close()
 
-
+# 모든 제목 가져오기 엔드포인트
 @router.post("/get_all_title")
-async def get_all_title_for_user(request: Request, db: Session = Depends(get_db)):
+async def get_all_title_for_user(request: Requests, db: Session = Depends(get_db)):
     try:
-        data = await request.json()
+        user = request.state.user
 
         # 해당 문서를 찾습니다.
-        docs = db.query(Docs).filter(Docs.email == data['email']).order_by(
-            Docs.created_at.desc()).all()
+        docs = db.query(Docs).filter(Docs.email == user.email).order_by(Docs.created_at.desc()).all()
 
         if not docs:
             raise HTTPException(status_code=404, detail="Document not found")
@@ -203,46 +181,40 @@ async def get_all_title_for_user(request: Request, db: Session = Depends(get_db)
         ]
 
         return {"documents": result}
-    except requests.exceptions.RequestException as e:
+    except httpx.RequestError as e:
         raise HTTPException(status_code=500, detail=f"Request failed: {e}")
     except Exception as e:
         db.rollback()  # 데이터베이스 변경 사항 롤백
-        raise HTTPException(
-            status_code=500, detail=f"An unexpected error occurred: {e}")
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {e}")
     finally:
         db.close()
 
-
-@router.post("/get_text")
-async def get_text_for_user(request: Request, db: Session = Depends(get_db)):
+# 특정 텍스트 가져오기 엔드포인트
+@router.get("/get_text/{docs_id}")
+async def get_text_for_user(docs_id: int, db: Session = Depends(get_db)):
     try:
-        data = await request.json()
-
         # 해당 문서를 찾습니다.
-        doc = db.query(Docs).filter(Docs.docs_id == data['docs_id']).one()
+        doc = db.query(Docs).filter(Docs.docs_id == docs_id).one()
 
         text = doc.content
 
         return {"text": text}
-    except requests.exceptions.RequestException as e:
+    except httpx.RequestError as e:
         raise HTTPException(status_code=500, detail=f"Request failed: {e}")
     except Exception as e:
         db.rollback()  # 데이터베이스 변경 사항 롤백
-        raise HTTPException(
-            status_code=500, detail=f"An unexpected error occurred: {e}")
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {e}")
     finally:
         db.close()
 
-
-@router.post("/get_all_text")
-async def get_all_text_for_user(request: Request, db: Session = Depends(get_db)):
+# 모든 좋아요 누른텍스트 가져오기 엔드포인트
+@router.get("/get_all_text")
+async def get_all_text_for_user(request: Requests, db: Session = Depends(get_db)):
     try:
-        data = await request.json()
+        user = request.state.user
 
         # 해당 문서를 찾습니다.
-        docs = db.query(Docs).filter(Docs.email == data['email'],
-                                     Docs.is_like == True).order_by(
-            Docs.created_at.desc()).all()
+        docs = db.query(Docs).filter(Docs.email == user.email, Docs.is_like == True).order_by(Docs.created_at.desc()).all()
 
         if not docs:
             raise HTTPException(status_code=404, detail="Document not found")
@@ -259,11 +231,12 @@ async def get_all_text_for_user(request: Request, db: Session = Depends(get_db))
         ]
 
         return {"documents": result}
-    except requests.exceptions.RequestException as e:
+    except httpx.RequestError as e:
         raise HTTPException(status_code=500, detail=f"Request failed: {e}")
     except Exception as e:
         db.rollback()  # 데이터베이스 변경 사항 롤백
-        raise HTTPException(
-            status_code=500, detail=f"An unexpected error occurred: {e}")
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {e}")
     finally:
         db.close()
+
+app.include_router(router, prefix="/retriever/ai")

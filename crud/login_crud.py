@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from models import User as UserModel, UserInfo as UserInfoModel , emailAuth 
+from models import User as UserModel, UserInfo as UserInfoModel , EmailAuth 
 from schemas import UserCreate , UserInfoCreate, User, UserBase, SendEmail, CheckEmail, CheckCode , UserInfoBase, ChangePassword
 from passlib.context import CryptContext
 from fastapi import FastAPI, Depends, HTTPException
@@ -20,6 +20,7 @@ def create_google_user(db:Session, user: str):
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
+    return db_user
     
 
 
@@ -55,11 +56,11 @@ def authenticate_user(db: Session, user:User):
     return find_user  # 인증된 사용자 객체 반환
 
 def email_auth(db: Session, user: CheckEmail):
-    find_user = db.query(emailAuth).filter(emailAuth.email == user.email).first()
+    find_user = db.query(EmailAuth).filter(EmailAuth.email == user.email).first()
     return find_user
 
 def update_email_auth(db: Session, user: CheckEmail, verify_code : str):
-    email_auth_db = db.query(emailAuth).filter(emailAuth.email == user.email).first()
+    email_auth_db = db.query(EmailAuth).filter(EmailAuth.email == user.email).first()
     if email_auth_db is None:
         return None
     email_auth_db.verify_number = verify_code
@@ -68,14 +69,14 @@ def update_email_auth(db: Session, user: CheckEmail, verify_code : str):
     return True
 
 def create_email_auth(db: Session, user: CheckEmail, verify_code : str):
-    email_auth_db = emailAuth(email=user.email,verify_number = verify_code )
+    email_auth_db = EmailAuth(email=user.email,verify_number = verify_code )
     db.add(email_auth_db)
     db.commit()
     db.refresh(email_auth_db)
     return True
 
 def update_is_active(db: Session, user: UserCreate):
-    email_auth_db = db.query(emailAuth).filter(emailAuth.email == user.email).first()
+    email_auth_db = db.query(EmailAuth).filter(EmailAuth.email == user.email).first()
     if email_auth_db is None:
         return None
     email_auth_db.is_active = True
@@ -106,9 +107,9 @@ def update_new_random_password(email: SendEmail, new_password: str, db: Session)
         db.rollback()  # 에러 발생 시 롤백
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
 
-def update_password(db:Session, password:ChangePassword):
+def update_password(db:Session, password:ChangePassword, email=EmailStr):
     hashed_password = bcrypt_context.hash(password.new_password)
-    db_user = db.query(UserModel).filter(UserModel.email == password.email).first()
+    db_user = db.query(UserModel).filter(UserModel.email == email).first()
     if db_user is None:
         raise HTTPException(status_code=404, detail="user not found")
     db_user.password = hashed_password
