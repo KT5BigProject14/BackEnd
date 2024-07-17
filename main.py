@@ -47,7 +47,7 @@ jwt_authentication = JWTAuthentication(jwt_service)
 
 @app.middleware("http")
 async def jwt_middleware(request: Request, call_next):
-    if request.url.path.startswith("/docs") or request.url.path.startswith("/retriever/login") or request.url.path.startswith("/retriever/openapi.json"):
+    if request.url.path.startswith("/docs") or request.url.path.startswith("/retriever/user") or request.url.path.startswith("/retriever/openapi.json") or request.url.path.startswith("retriever/user/login/oauth2/code"):
         response = await call_next(request)
         return response
 
@@ -55,7 +55,7 @@ async def jwt_middleware(request: Request, call_next):
     try:
         db = next(get_db())
         user = await jwt_authentication.authenticate_user(request, response, db)
-        if user and (user.role == "admin" or user.role == "user"):
+        if user:
             request.state.user = user
             response = await call_next(request)
         else:

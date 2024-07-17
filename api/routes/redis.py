@@ -5,6 +5,7 @@ import requests
 import httpx
 from datetime import datetime
 import re
+from starlette.requests import Request
 
 app = FastAPI()
 router = APIRouter()
@@ -44,11 +45,12 @@ def extract_and_sort_messages(messages):
 
 
 @router.get("/all_messages", response_model=all_messagesResponse)
-async def get_all_messages_for_user(user_email: str = Query(..., description="The email of the user to get messages for")):
+async def get_all_messages_for_user(request: Request):
+    user = request.state.user
     async with httpx.AsyncClient() as client:
         try:
             response = await client.get(
-                f"{langserve_url}/all_messages", params={"user_email": user_email}
+                f"{langserve_url}/all_messages", params={"user_email": user.email}
             )
             response.raise_for_status()
             result = response.json()
@@ -72,12 +74,13 @@ def remove_timestamps(messages):
     return [re.sub(r"^\d{4}[\.-]\d{2}[\.-]\d{2} \d{2}:\d{2}:\d{2} - ", "", message) for message in messages]
 
 
-@router.get("/messages/{user_email}/{session_id}")
-async def get_messages_for_user(user_email: str, session_id: str, start: int = 0, end: int = -1):
+@router.get("/messages/{session_id}")
+async def get_messages_for_user(request: Request, session_id: str, start: int = 0, end: int = -1):
     try:
+        user = request.state.user
         async with httpx.AsyncClient() as client:
             response = await client.get(
-                f"{langserve_url}/messages/{user_email}/{session_id}",
+                f"{langserve_url}/messages/{user.email}/{session_id}",
                 params={"start": start, "end": end},
                 timeout=10.0
             )

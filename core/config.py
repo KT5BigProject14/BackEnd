@@ -44,6 +44,9 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_ID : str
     GOOGLE_CLIENT_SECRET : str
     GOOGLE_REDIRECT_URI : str 
+    NAVER_CLIENT_ID : str
+    NAVER_CLIENT_SECRET : str
+    NAVER_CALLBACK_URI : str
     # PROJECT_NAME: str = "My FastAPI Project"
     # API_V1_STR: str = "/api/v1"
     # BACKEND_CORS_ORIGINS: list = ["*"]

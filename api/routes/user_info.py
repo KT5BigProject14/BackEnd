@@ -22,18 +22,19 @@ router = APIRouter()
 jwt_service = JWTService(JWTEncoder(),JWTDecoder(),settings.ALGORITHM,settings.SECRET_KEY,settings.ACCESS_TOKEN_EXPIRE_TIME,settings.REFRESH_TOKEN_EXPIRE_TIME)
 
 # request에 담겨있는 토큰 파싱한 유저 정보로 email 찾음
-@router.get("/user_info")
+@router.get("/user")
 def read_user_info(request: Request, db: Session = Depends(get_db) ):
     print(request)
     user = request.state.user
+    print(user.email)
     db_user_info = get_user_info_db(db = db,user= user.email )
     if db_user_info is None:
         raise HTTPException(status_code=404, detail="User Info not found")
     return db_user_info
 
-@router.post("/create/user_info")
+@router.post("/create/user")
 def create_user_info(request:Request, response: Response, user_info: UserInfoBase, db: Session = Depends(get_db)):
-    user = request.tate.user
+    user = request.state.user
     user_info = create_user_info_db(db =db, user_info =user_info, email = user.email)
     user = change_user_role(db = db, user = user_info.email)
     response.delete_cookie(key="refresh_token")
@@ -50,7 +51,7 @@ def create_user_info(request:Request, response: Response, user_info: UserInfoBas
     )
     return response
 
-@router.put("/user_info/")
+@router.put("/change/user")
 def update_user_info(request: Request, user_info: UserInfoBase ,db: Session = Depends(get_db)):
     user = request.state.user
     update_user_info_db(db, user_info, user.email)
@@ -59,8 +60,12 @@ def update_user_info(request: Request, user_info: UserInfoBase ,db: Session = De
 @router.post("/change/password")
 async def email_by_gmail(request:Request, password:ChangePassword ,db: Session = Depends(get_db)):
     user = request.state.user
-    check_user = User({    "email": user.email,password: password.password})
+    type = request.state.type
+
+    if type == "social":
+        raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE, detail="Social logins cannot change passwords.")
+    check_user = User(email=user.email, password=password.password)
     confirm_password = authenticate_user(db, check_user)
     if confirm_password:
-        update_password(db, password)
+        update_password(db, password,email=user.email)
     return HTTPException(status_code=status.HTTP_200_OK, detail="change password successful")

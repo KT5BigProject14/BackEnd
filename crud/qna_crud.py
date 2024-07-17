@@ -45,12 +45,15 @@ def db_update_qna(qna: CheckQna, db: Session):
 
 def delete_img(qna: CheckQna, db: Session):
     images_to_delete = db.query(Image).filter(Image.qna_id == qna.qna_id).all()
-    for db_img in images_to_delete:
-        db.delete(db_img)
-    db.commit()
-    return images_to_delete
+    if not images_to_delete:
+        return None
+    else:
+        for db_img in images_to_delete:
+            db.delete(db_img)
+            db.commit()
+        return images_to_delete
 
-def delete_qna(qna: CheckQna, db:Session):
+def db_delete_qna(qna: CheckQna, db:Session):
     qna_to_delete = db.query(QnA).filter(QnA.qna_id == qna.qna_id).first()
     db.delete(qna_to_delete)
     db.commit()

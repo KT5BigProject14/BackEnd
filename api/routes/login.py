@@ -51,7 +51,8 @@ GetCurrentUser = Annotated[User, Depends(get_current_user)]
 
 # oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-@router.post("/users/signup")
+#
+@router.post("/signup")
 def create_user(user: UserBase, db: Session = Depends(get_db)):
     db_user = get_user(db, user.email)
     if db_user:
@@ -61,7 +62,7 @@ def create_user(user: UserBase, db: Session = Depends(get_db)):
     create_user_db(db=db, user=user)
     return HTTPException(status_code=200,detail="signup success")
 
-@router.post("/users/login")
+@router.post("/login")
 async def login_user(
     user : User,
     db: Session = Depends(get_db)):
@@ -70,13 +71,13 @@ async def login_user(
         raise HTTPException(status_code=401, detail="Invalid credentials")
     db_user_info = get_user_info_db(db= db, user=user_id.email)
     if db_user_info:
-        data = {"email": str(user_id.email), "name": db_user_info.user_name, "role": user_id.role}
+        data = {"email": str(user_id.email),"type":"normal", "name": db_user_info.user_name, "role": user_id.role}
     else:
-        data = {"email": str(user_id.email), "role":user_id.role}
+        data = {"email": str(user_id.email),"type":"normal", "role":user_id.role}
         
     access_token = jwt_service.create_access_token(data)
     refresh_token = jwt_service.create_refresh_token(data)
-    response = JSONResponse(content={"access_token":access_token,"email":user_id.email, "role": user_id.role}, status_code=status.HTTP_200_OK)
+    response = JSONResponse(content={"access_token":access_token, "type":"normal","role": user_id.role}, status_code=status.HTTP_200_OK)
     response.set_cookie(
         key="refresh_token",
         value=refresh_token,
@@ -87,7 +88,7 @@ async def login_user(
     return response
 
 @router.get("/login/google")
-async def auth_login():
+async def auth_google_login():
     return {
             "url": f"https://accounts.google.com/o/oauth2/auth?response_type=code&client_id={settings.GOOGLE_CLIENT_ID}&redirect_uri={settings.GOOGLE_REDIRECT_URI}&scope=openid%20profile%20email&access_type=offline"
     }
@@ -130,12 +131,13 @@ async def auth_google(request: Request, response: Response, db: Session = Depend
     
     db_user = get_user(db, user_info['email'])
     if not db_user:
-        create_google_user(db=db, user=user_info['email'])
+        db_user = create_google_user(db=db, user=user_info['email'])
     db_user_info = get_user_info_db(db= db, user=user_info['email'] )
+    type = "social"
     if db_user_info:
-        data = {"email": str(user_info['email']), "name": db_user_info.user_name, "role": db_user.role}
+        data = {"email": str(user_info['email']),"type":type,"role": db_user.role}
     else:
-        data = {"email": str(user_info['email']), "role": db_user.role}
+        data = {"email": str(user_info['email']),"type":type, "role": db_user.role}
     
     access_token = jwt_service.create_access_token(data)
     refresh_token = jwt_service.create_refresh_token(data)
@@ -147,7 +149,7 @@ async def auth_google(request: Request, response: Response, db: Session = Depend
     # 이렇게 하면 query에 토큰값이랑 이메일 정보가 노출되어 보안적으로는 redis에 이 값들을 저장하고
     # 프론트에서 redirect 될면서 바로 redis값을 찾는 요청을 보내 return 해주는게 더 안전한 방법이긴 함
     # 아래와 같이 보내는 경우에는 query 값으로 sessionStorage에 저장한 후 바로 메인페이지로 redirect 해야함
-    redirect_url = f"http://localhost:3000/google/login?token={access_token}&user={user_info['email']}&role={db_user.role}"
+    redirect_url = f"http://localhost:3000/google/login?token={access_token}&role={db_user.role}&type={type}"
     response = RedirectResponse(url=redirect_url)
     response.set_cookie(
         key="refresh_token",
@@ -158,8 +160,82 @@ async def auth_google(request: Request, response: Response, db: Session = Depend
     )
     return response
 
+
+@router.get("/login/naver")
+async def auth_naver_login():
+    return {
+            "url": f"https://nid.naver.com/oauth2.0/authorize?response_type=code&client_id={settings.NAVER_CLIENT_ID}&state=STATE_STRING&redirect_uri={settings.NAVER_CALLBACK_URI}&auth_type=reprompt"
+    }
+
+@router.get("/login/oauth2/code/naver")
+async def auth_naver(request: Request, response: Response, db: Session = Depends(get_db)):
+    code = request.query_params.get('code')
+    state = request.query_params.get('state')
+    if not code:
+        return RedirectResponse(url="http://localhost:3000/google/error")
+    
+    token_url = "https://nid.naver.com/oauth2.0/token"
+    data = {
+        "code": code,
+        "client_id": settings.NAVER_CLIENT_ID,
+        "client_secret": settings.NAVER_CLIENT_SECRET,
+        "redirect_uri": settings.NAVER_CALLBACK_URI,
+        "grant_type": "authorization_code",
+        "state": state
+    }
+    token_response = requests.post(token_url, data=data)
+    
+    if token_response.status_code != 200:
+        return {"error": "Failed to get access token", "details": token_response.text}
+    
+    token_json = token_response.json()
+    access_token = token_json.get("access_token")
+    refresh_token = token_json.get("refresh_token")
+    
+    if not access_token:
+        return {"error": "No access token received", "details": token_json}
+    
+    user_info_response = requests.get(
+        "https://openapi.naver.com/v1/nid/me",
+        headers={"Authorization": f"Bearer {access_token}"}
+    )
+
+    if user_info_response.status_code != 200:
+        return {"error": "Failed to fetch user info", "details": user_info_response.text}
+    
+    user_info = user_info_response.json()
+    db_user = get_user(db, user_info['response']['email'])
+    if not db_user:
+        db_user = create_google_user(db=db, user=user_info['response']['email'])
+    db_user_info = get_user_info_db(db= db, user=user_info['response']['email'] )
+    type = "social"
+    if db_user_info:
+        data = {"email": str(user_info['response']['email']),"type":type, "role": db_user.role}
+    else:
+        data = {"email": str(user_info['response']['email']),"type":type, "role": db_user.role}
+    
+    access_token = jwt_service.create_access_token(data)
+    refresh_token = jwt_service.create_refresh_token(data)
+    
+    # 쿠키 설정
+
+    
+    # 리디렉션 응답
+    # 이렇게 하면 query에 토큰값이랑 이메일 정보가 노출되어 보안적으로는 redis에 이 값들을 저장하고
+    # 프론트에서 redirect 될면서 바로 redis값을 찾는 요청을 보내 return 해주는게 더 안전한 방법이긴 함
+    # 아래와 같이 보내는 경우에는 query 값으로 sessionStorage에 저장한 후 바로 메인페이지로 redirect 해야함
+    redirect_url = f"http://localhost:3000/naver/login?token={access_token}&role={db_user.role}&type={type}"
+    response = RedirectResponse(url=redirect_url)
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=False,  # HTTPS 사용 시에만 True로 설정, 로컬 테스트라 False로 설정
+        samesite='Lax',  # samesite는 'None', 'Lax', 'Strict' 중 하나여야 합니다. , 'Strict', 'None'은 HTTPS에서만 작동
+    )
+    return response
 # 이메일 인증 보내는 로직(background로 멀티 스레드 작업을 통해 보내는 시간 단축)
-@router.post("/email/send_by_gmail")
+@router.post("/send/eamil/code")
 async def email_by_gmail(request: Request, mail: SendEmail, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     # email_auth DB조회
     selected_email = email_auth(db,mail)
@@ -181,7 +257,7 @@ async def email_by_gmail(request: Request, mail: SendEmail, background_tasks: Ba
         create_email_auth(db,mail,verify_code = verification_code)
     return MessageOk()
 
-@router.post("/find/password/send_by_gmail")
+@router.post("/find/password/send/email/code")
 async def find_password_by_email(request: Request, mail: SendEmail, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     # email_auth DB조회
     selected_email = email_auth(db,mail)
@@ -196,7 +272,7 @@ async def find_password_by_email(request: Request, mail: SendEmail, background_t
 
 #회원가입 이메일 검증
 #비밀번호 찾기 이메일 검증
-@router.put("/email/check_code")
+@router.put("/check/code")
 async def check_code(user_code: CheckCode, db: Session = Depends(get_db)):
     selected_email = email_auth(db,user_code)
     twenty_four_hours_ago = datetime.utcnow() - timedelta(hours=24)
@@ -249,8 +325,9 @@ async def send_new_password(**kwargs):
     except Exception as e:
         print(e)
         
-@router.post("/users/logout")
+@router.post("/logout")
 async def logout_user(response: Response, request: Request):
+    
     refresh_token = request.cookies.get("refresh_token")
     response.delete_cookie(key="refresh_token")
     return HTTPException(status_code=status.HTTP_200_OK, detail="Logout successful")
