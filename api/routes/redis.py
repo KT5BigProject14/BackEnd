@@ -44,7 +44,7 @@ def extract_and_sort_messages(messages):
     return result
 
 
-@router.get("/all_messages", response_model=all_messagesResponse)
+@router.get("/all/messages", response_model=all_messagesResponse)
 async def get_all_messages_for_user(request: Request):
     user = request.state.user
     async with httpx.AsyncClient() as client:

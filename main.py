@@ -47,14 +47,19 @@ jwt_authentication = JWTAuthentication(jwt_service)
 
 @app.middleware("http")
 async def jwt_middleware(request: Request, call_next):
-    if request.url.path.startswith("/docs") or request.url.path.startswith("/retriever/user") or request.url.path.startswith("/retriever/openapi.json") or request.url.path.startswith("retriever/user/login/oauth2/code"):
+    if (
+        request.url.path.startswith("/docs") or
+        request.url.path.startswith("/retriever/user") or
+        request.url.path.startswith("/retriever/openapi.json") or
+        request.url.path.startswith("/retriever/user/login/oauth2/code")
+    ):
         response = await call_next(request)
         return response
 
-    response = Response("Internal server error", status_code=500)
+    # 예외 처리 대신 기본적으로 인증을 시도합니다.
     try:
         db = next(get_db())
-        user = await jwt_authentication.authenticate_user(request, response, db)
+        user = await jwt_authentication.authenticate_user(request, db)
         if user:
             request.state.user = user
             response = await call_next(request)
@@ -66,8 +71,11 @@ async def jwt_middleware(request: Request, call_next):
             )
     except HTTPException as e:
         response = JSONResponse(status_code=e.status_code, content={"detail": e.detail})
+        if 'new-access-token' in e.headers:
+            response.headers['new-access-token'] = e.headers['new-access-token']
 
     return response
+
 # # Set all CORS enabled origins
 # 미들웨어를 추가하여 지정된 원본에서 오는 요청을 허용
 if settings.BACKEND_CORS_ORIGINS:
@@ -79,6 +87,7 @@ if settings.BACKEND_CORS_ORIGINS:
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
+        expose_headers=["new-access-token"] # 여기에 헤더를 추가합니다
     )
 #  클라이언트의 요청에 세션 쿠키를 추가하고, 서버 측에서 이 세션 데이터를 해독하여 사용하여 HTTP 요청 간에 사용자 데이터를 유지
 app.add_middleware(SessionMiddleware,secret_key=settings.SECRET_KEY)
