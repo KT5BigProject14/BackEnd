@@ -46,8 +46,9 @@ def create_user_info(request:Request, response: Response, user_info: UserInfoBas
         key="refresh_token",
         value=refresh_token,
         httponly=True,
-        # secure=True,
-        samesite='none',
+        secure=False,
+        samesite='lax',
+        path="/"
     )
     return response
 

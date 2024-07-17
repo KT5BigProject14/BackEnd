@@ -44,7 +44,6 @@ class JWTAuthentication:
     async def authenticate_user(
         self,
         request: Request,
-        response: Response,
         db: Session
     ) -> dict:
         authorization = request.headers.get("Authorization")
@@ -58,7 +57,6 @@ class JWTAuthentication:
                     type = valid_payload.get('type')  # 'type'으로 변수명 변경
 
                     if role == "guest":
-                        # Check if the current endpoint is '/retriever/info/create/user'
                         if request.url.path == "/retriever/info/create/user":
                             user = login_crud.get_user(db, email)
                             if user is None:
@@ -67,7 +65,6 @@ class JWTAuthentication:
                                     detail="Non-existent user.",
                                     headers={"WWW-Authenticate": "Bearer"},
                                 )
-                            # Set request.state.user to the token's payload dictionary
                             request.state.user = user
                             request.state.type = type
                             return request.state.user
@@ -85,7 +82,6 @@ class JWTAuthentication:
                             detail="Non-existent user.",
                             headers={"WWW-Authenticate": "Bearer"},
                         )
-                    # Set request.state.user to the token's payload dictionary
                     request.state.user = user
                     request.state.type = type
                     return request.state.user
@@ -98,10 +94,16 @@ class JWTAuthentication:
                             role = refresh_payload.get("role")
                             type = refresh_payload.get('type')
                             new_access_token = self.jwt_service.create_access_token({"email": email, "role": role, "type": type})
+                            print(new_access_token)
+
+                            # Add the new-access-token header to the exception
                             raise HTTPException(
                                 status_code=status.HTTP_401_UNAUTHORIZED,
                                 detail="Access token expired. New token issued.",
-                                headers={"WWW-Authenticate": f"Bearer {new_access_token}"},
+                                headers={
+                                    "WWW-Authenticate": "Bearer",
+                                    "new-access-token": new_access_token  # Add the new access token in the exception headers
+                                }
                             )
                         else:
                             raise HTTPException(
@@ -121,5 +123,7 @@ class JWTAuthentication:
                 detail="Missing Authorization header.",
                 headers={"WWW-Authenticate": "Bearer"},
             )
+
+
 
 

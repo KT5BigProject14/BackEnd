@@ -82,8 +82,9 @@ async def login_user(
         key="refresh_token",
         value=refresh_token,
         httponly=True,
-        # secure=True,
-        samesite='none',
+        secure=False,  # HTTPS 사용 시에만 True로 설정, 로컬 테스트라 False로 설정
+        samesite='Lax',  # samesite는 'None', 'Lax', 'Strict' 중 하나여야 합니다. , 'Strict', 'None'은 HTTPS에서만 작동
+        path="/"
     )
     return response
 
@@ -157,6 +158,7 @@ async def auth_google(request: Request, response: Response, db: Session = Depend
         httponly=True,
         secure=False,  # HTTPS 사용 시에만 True로 설정, 로컬 테스트라 False로 설정
         samesite='Lax',  # samesite는 'None', 'Lax', 'Strict' 중 하나여야 합니다. , 'Strict', 'None'은 HTTPS에서만 작동
+        path="/"
     )
     return response
 
@@ -232,6 +234,7 @@ async def auth_naver(request: Request, response: Response, db: Session = Depends
         httponly=True,
         secure=False,  # HTTPS 사용 시에만 True로 설정, 로컬 테스트라 False로 설정
         samesite='Lax',  # samesite는 'None', 'Lax', 'Strict' 중 하나여야 합니다. , 'Strict', 'None'은 HTTPS에서만 작동
+        path="/"
     )
     return response
 # 이메일 인증 보내는 로직(background로 멀티 스레드 작업을 통해 보내는 시간 단축)
@@ -326,11 +329,12 @@ async def send_new_password(**kwargs):
         print(e)
         
 @router.post("/logout")
-async def logout_user(response: Response, request: Request):
+async def logout_user(request: Request, response: Response):
+    # `refresh_token` 쿠키 삭제
+    response.delete_cookie(key="refresh_token", path="/", domain="localhost")  # domain과 path를 설정
     
-    refresh_token = request.cookies.get("refresh_token")
-    response.delete_cookie(key="refresh_token")
-    return HTTPException(status_code=status.HTTP_200_OK, detail="Logout successful")
+    # 성공적으로 로그아웃되었음을 알리는 JSON 응답
+    return {"message": "Logout successful"}
 
 # @router.get("/users/", response_model=List[User])  # 여기에서 List를 사용
 # def read_users(skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):

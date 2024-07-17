@@ -159,7 +159,7 @@ async def docs_save(docs_save_request: DocsSaveRequest, db: Session = Depends(ge
         db.close()
 
 # 모든 제목 가져오기 엔드포인트
-@router.post("/get_all_title")
+@router.get("/view/all/title")
 async def get_all_title_for_user(request: Requests, db: Session = Depends(get_db)):
     try:
         user = request.state.user
@@ -190,7 +190,7 @@ async def get_all_title_for_user(request: Requests, db: Session = Depends(get_db
         db.close()
 
 # 특정 텍스트 가져오기 엔드포인트
-@router.get("/get_text/{docs_id}")
+@router.get("/view/text/{docs_id}")
 async def get_text_for_user(docs_id: int, db: Session = Depends(get_db)):
     try:
         # 해당 문서를 찾습니다.
@@ -208,7 +208,7 @@ async def get_text_for_user(docs_id: int, db: Session = Depends(get_db)):
         db.close()
 
 # 모든 좋아요 누른텍스트 가져오기 엔드포인트
-@router.get("/get_all_text")
+@router.get("/get/like/text")
 async def get_all_text_for_user(request: Requests, db: Session = Depends(get_db)):
     try:
         user = request.state.user
