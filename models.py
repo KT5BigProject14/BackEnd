@@ -11,7 +11,7 @@ engine = create_engine(
     DATABASE_URL,
     pool_size=10,  # 기본 연결 풀 크기
     max_overflow=20,  # 오버플로우 한계
-    pool_timeout=30,  # 연결 시도 타임아웃 (초)
+    pool_timeout=60,  # 연결 시도 타임아웃 (초)
     pool_recycle=3600,  # 연결 재활용 시간 (초)
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -35,7 +35,7 @@ class UserInfo(Base):
     position = Column(String(100))
     phone = Column(String(20))
     corporation = Column(String(255))
-    business_number = Column(Integer)
+    business_number = Column(String(255))
     user_name = Column(String(255), index=True)
     user = relationship("User", back_populates="user_info")
 
