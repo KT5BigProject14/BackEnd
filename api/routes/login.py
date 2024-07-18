@@ -84,7 +84,6 @@ async def login_user(
         httponly=True,
         secure=False,  # HTTPS 사용 시에만 True로 설정, 로컬 테스트라 False로 설정
         samesite='Lax',  # samesite는 'None', 'Lax', 'Strict' 중 하나여야 합니다. , 'Strict', 'None'은 HTTPS에서만 작동
-        path="/"
     )
     return response
 
