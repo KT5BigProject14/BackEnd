@@ -16,3 +16,9 @@ pyjwt==2.8.0
 cryptography
 itsdangerous
 authlib
+aiosmtplib
+Pillow
+boto3
+pymysql
+python-jose
+yagmail
