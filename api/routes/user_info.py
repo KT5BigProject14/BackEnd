@@ -28,7 +28,7 @@ def read_user_info(request: Request, db: Session = Depends(get_db)):
     db_user_info = get_user_info_db(db=db, user=user.email)
     if db_user_info is None:
         raise HTTPException(status_code=404, detail="User Info not found")
-    db_user_keyword = get_user_keyword(user_email=user.email, db=db)
+    db_user_keyword = get_user_keyword(email=user.email, db=db)
     
     return {
         "user_info": db_user_info,
