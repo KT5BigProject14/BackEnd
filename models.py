@@ -27,6 +27,8 @@ class User(Base):
     qna = relationship("QnA", back_populates="user", cascade="all, delete-orphan")
     comments = relationship("Comment", back_populates="user", cascade="all, delete-orphan")
     docs = relationship("Docs", back_populates="user", cascade="all, delete-orphan")
+    keywords = relationship("Keyword", back_populates="user", cascade="all, delete-orphan")
+
 
 class UserInfo(Base):
     __tablename__ = 'user_info'
@@ -88,7 +90,15 @@ class Docs(Base):
     is_like = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     user = relationship("User", back_populates="docs", single_parent=True)  # Add single_parent=True
-
+    
+class Keyword(Base):
+    __tablename__ = 'keyword'
+    keyword_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    email = Column(String(255), ForeignKey('users.email'), nullable=False)
+    likeyear = Column(String(255))
+    likecountry = Column(String(255))
+    likebusiness = Column(String(255))
+    user = relationship("User", back_populates="keywords")
 # 이벤트를 통해 User 엔티티의 업데이트 시간을 관리
 @event.listens_for(Session, "before_flush")
 def receive_before_flush(session, flush_context, instances):

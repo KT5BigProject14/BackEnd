@@ -16,7 +16,7 @@ COPY . /app
 EXPOSE 8000
 # 컨테이너 실행 시 명령어 설정
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
-
+# CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--ssl-keyfile", "/etc/ssl/private/ssl.key", "--ssl-certfile", "/etc/ssl/certs/ssl.crt"]
 
 # FROM tiangolo/uvicorn-gunicorn-starlette:python3.11-slim
 

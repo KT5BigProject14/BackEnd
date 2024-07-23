@@ -97,7 +97,7 @@ async def auth_google_login():
 async def auth_google(request: Request, response: Response, db: Session = Depends(get_db)):
     code = request.query_params.get('code')
     if not code:
-        return RedirectResponse(url="http://localhost:3000/google/error")
+        return RedirectResponse(url="https://ailogo.world:3000/google/error")
     
     token_url = "https://oauth2.googleapis.com/token"
     data = {
@@ -149,7 +149,7 @@ async def auth_google(request: Request, response: Response, db: Session = Depend
     # 이렇게 하면 query에 토큰값이랑 이메일 정보가 노출되어 보안적으로는 redis에 이 값들을 저장하고
     # 프론트에서 redirect 될면서 바로 redis값을 찾는 요청을 보내 return 해주는게 더 안전한 방법이긴 함
     # 아래와 같이 보내는 경우에는 query 값으로 sessionStorage에 저장한 후 바로 메인페이지로 redirect 해야함
-    redirect_url = f"http://localhost:3000/google/login?token={access_token}&role={db_user.role}&type={type}"
+    redirect_url = f"https://ailogo.world/google/login?token={access_token}&role={db_user.role}&type={type}"
     response = RedirectResponse(url=redirect_url)
     response.set_cookie(
         key="refresh_token",
@@ -173,7 +173,7 @@ async def auth_naver(request: Request, response: Response, db: Session = Depends
     code = request.query_params.get('code')
     state = request.query_params.get('state')
     if not code:
-        return RedirectResponse(url="http://localhost:3000/google/error")
+        return RedirectResponse(url="https://http://ailogo.world/google/error")
     
     token_url = "https://nid.naver.com/oauth2.0/token"
     data = {
@@ -225,7 +225,7 @@ async def auth_naver(request: Request, response: Response, db: Session = Depends
     # 이렇게 하면 query에 토큰값이랑 이메일 정보가 노출되어 보안적으로는 redis에 이 값들을 저장하고
     # 프론트에서 redirect 될면서 바로 redis값을 찾는 요청을 보내 return 해주는게 더 안전한 방법이긴 함
     # 아래와 같이 보내는 경우에는 query 값으로 sessionStorage에 저장한 후 바로 메인페이지로 redirect 해야함
-    redirect_url = f"http://localhost:3000/naver/login?token={access_token}&role={db_user.role}&type={type}"
+    redirect_url = f"https://ailogo.world/naver/login?token={access_token}&role={db_user.role}&type={type}"
     response = RedirectResponse(url=redirect_url)
     response.set_cookie(
         key="refresh_token",
@@ -237,7 +237,7 @@ async def auth_naver(request: Request, response: Response, db: Session = Depends
     )
     return response
 # 이메일 인증 보내는 로직(background로 멀티 스레드 작업을 통해 보내는 시간 단축)
-@router.post("/send/eamil/code")
+@router.post("/send/email/code")
 async def email_by_gmail(request: Request, mail: SendEmail, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     # email_auth DB조회
     selected_email = email_auth(db,mail)
@@ -330,7 +330,7 @@ async def send_new_password(**kwargs):
 @router.post("/logout")
 async def logout_user(request: Request, response: Response):
     # `refresh_token` 쿠키 삭제
-    response.delete_cookie(key="refresh_token", path="/", domain="localhost")  # domain과 path를 설정
+    response.delete_cookie(key="refresh_token", path="/")  # domain과 path를 설정
     
     # 성공적으로 로그아웃되었음을 알리는 JSON 응답
     return {"message": "Logout successful"}

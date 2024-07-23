@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
-from models import User as UserModel, UserInfo as UserInfoModel , EmailAuth 
-from schemas import UserCreate , UserInfoCreate, User, UserBase, SendEmail, CheckEmail, CheckCode , UserInfoBase, ChangePassword
+from models import User as UserModel, UserInfo as UserInfoModel , EmailAuth, Keyword
+from schemas import UserCreate , UserInfoCreate, User, UserBase, SendEmail, CheckEmail, CheckCode , UserInfoBase, ChangePassword, Keywords
 from passlib.context import CryptContext
 from fastapi import FastAPI, Depends, HTTPException
 from typing import Annotated
@@ -39,3 +39,23 @@ def change_user_role(db:Session, user: str):
     db.commit()
     db.refresh(db_user)
     return db_user
+
+def create_keyword_db(keyword: Keywords, email: EmailStr, db :Session):
+    db_keyword = Keyword(email = email, likeyear = keyword.likeyear, likecountry = keyword.likecountry, likebusiness =keyword.likebusiness)
+    db.add(db_keyword)
+    db.commit()
+    db.refresh(db_keyword)
+    return db_keyword
+def get_user_keyword(email: EmailStr, db :Session):
+    db_keyword = db.query(Keyword).filter(Keyword.email == email).first()
+    if db_keyword is None:
+        return None
+    else:
+        return db_keyword
+def update_keyword_db(keyword: Keywords, email: EmailStr, db :Session):
+    db_keyword = db.query(Keyword).filter(Keyword.email == email).first()
+    db_keyword.likebusiness = keyword.likebusiness
+    db_keyword.likecountry = keyword.likecountry
+    db_keyword.likeyear = keyword.likeyear
+    db.commit()
+    db.refresh(db_keyword)

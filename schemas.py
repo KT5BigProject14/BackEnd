@@ -138,3 +138,8 @@ class Settings(BaseSettings):
 
     class Config:
         case_sensitive = True
+
+class Keywords(BaseModel):
+    likeyear: str
+    likecountry: str
+    likebusiness:str
