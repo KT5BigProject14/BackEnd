@@ -96,13 +96,13 @@ class JWTAuthentication:
                             new_access_token = self.jwt_service.create_access_token({"email": email, "role": role, "type": type})
                             print(new_access_token)
 
-                            # Add the new-access-token header to the exception
+                            
                             raise HTTPException(
                                 status_code=status.HTTP_401_UNAUTHORIZED,
                                 detail="Access token expired. New token issued.",
                                 headers={
                                     "WWW-Authenticate": "Bearer",
-                                    "new-access-token": new_access_token  # Add the new access token in the exception headers
+                                    "new-access-token": new_access_token  # access_token이 만료되었을때 새롭게 발급된 토큰을 response header에 추가
                                 }
                             )
                         else:

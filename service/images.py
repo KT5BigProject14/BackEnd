@@ -78,8 +78,8 @@ def convert_image_to_bytes(image: Image) -> io.BytesIO:
 # AWS SDK boto3의 client
 s3_client = client(
     "s3",
-    aws_access_key_id=settings.AWS_ACCESS_KEY, # 본인 소유의 키를 입력
-    aws_secret_access_key=settings.AWS_SECRET_KEY, # 본인 소유의 키를 입력
+    aws_access_key_id=settings.AWS_ACCESS_KEY, 
+    aws_secret_access_key=settings.AWS_SECRET_KEY,
     region_name=settings.REGIONE_NAME,
 )
 # S3에 업로드
