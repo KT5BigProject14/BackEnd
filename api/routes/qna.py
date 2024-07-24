@@ -46,6 +46,7 @@ async def upload_image(file: UploadFile | None):
     file = images.change_filename(file)
     filename = file.filename
     image = images.resize_image(file)
+    # s3 사용시 필요
     # image = images.convert_image_to_bytes(image)
     # upload_to_s3(image,"bucket_name", filename)
     image = images.save_image_to_filesystem(image, f"./img/{filename}")

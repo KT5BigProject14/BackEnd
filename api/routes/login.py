@@ -218,13 +218,6 @@ async def auth_naver(request: Request, response: Response, db: Session = Depends
     access_token = jwt_service.create_access_token(data)
     refresh_token = jwt_service.create_refresh_token(data)
     
-    # 쿠키 설정
-
-    
-    # 리디렉션 응답
-    # 이렇게 하면 query에 토큰값이랑 이메일 정보가 노출되어 보안적으로는 redis에 이 값들을 저장하고
-    # 프론트에서 redirect 될면서 바로 redis값을 찾는 요청을 보내 return 해주는게 더 안전한 방법이긴 함
-    # 아래와 같이 보내는 경우에는 query 값으로 sessionStorage에 저장한 후 바로 메인페이지로 redirect 해야함
     redirect_url = f"https://ailogo.world/naver/login?token={access_token}&role={db_user.role}&type={type}"
     response = RedirectResponse(url=redirect_url)
     response.set_cookie(
@@ -334,20 +327,6 @@ async def logout_user(request: Request, response: Response):
     
     # 성공적으로 로그아웃되었음을 알리는 JSON 응답
     return {"message": "Logout successful"}
-
-# @router.get("/users/", response_model=List[User])  # 여기에서 List를 사용
-# def read_users(skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
-#     users = get_users(db, skip=skip, limit=limit)
-#     return users
-
-
-# @router.get("/users/{email}", response_model=User)
-# def read_user(email: str, db: Session = Depends(get_db)):
-#     db_user = get_user(db, email=email)
-#     if db_user is None:
-#         raise HTTPException(status_code=404, detail="User not found")
-#     return db_user
-
 
 @router.post("/users/signup/admin")
 def create_user(user: UserBase, db: Session = Depends(get_db)):

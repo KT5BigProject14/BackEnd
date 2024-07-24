@@ -47,9 +47,7 @@ class Settings(BaseSettings):
     NAVER_CLIENT_ID : str
     NAVER_CLIENT_SECRET : str
     NAVER_CALLBACK_URI : str
-    # PROJECT_NAME: str = "My FastAPI Project"
-    # API_V1_STR: str = "/api/v1"
-    # BACKEND_CORS_ORIGINS: list = ["*"]
+    LANGSERVE_URL: str
 
     def _check_default_secret(self, var_name: str, value: str | None) -> None:
         if value == "changethis":

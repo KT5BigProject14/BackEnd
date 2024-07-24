@@ -82,9 +82,6 @@ async def upload_qna(request: Request,title: Annotated[str, Form()], content: An
 async def load_all_community(request: Request, db: Session = Depends(get_db)):
     all_community = read_all_community(db=db)
     return all_community
-# @router.get("/admin_all_qna")
-# async def load_admin_all_qna(db: Session = Depends(get_db)):
-#     return admin_all_qna(db)
 
 @router.get("/load/{community_id}")
 async def load_community(community_id: int, db: Session = Depends(get_db)):
