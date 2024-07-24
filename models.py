@@ -27,6 +27,9 @@ class User(Base):
     qna = relationship("QnA", back_populates="user", cascade="all, delete-orphan")
     comments = relationship("Comment", back_populates="user", cascade="all, delete-orphan")
     docs = relationship("Docs", back_populates="user", cascade="all, delete-orphan")
+    keywords = relationship("Keyword", back_populates="user", cascade="all, delete-orphan")
+    community = relationship("Community", back_populates="user", cascade="all, delete-orphan")
+    community_comments = relationship("CommunityComment", back_populates="user", cascade="all, delete-orphan")  # 수정된 부분
 
 class UserInfo(Base):
     __tablename__ = 'user_info'
@@ -89,11 +92,51 @@ class Docs(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     user = relationship("User", back_populates="docs", single_parent=True)  # Add single_parent=True
 
+class Keyword(Base):
+    __tablename__ = 'keyword'
+    keyword_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    email = Column(String(255), ForeignKey('users.email'), nullable=False)
+    likeyear = Column(String(255))
+    likecountry = Column(String(255))
+    likebusiness = Column(String(255))
+    user = relationship("User", back_populates="keywords")
+
 # 이벤트를 통해 User 엔티티의 업데이트 시간을 관리
 @event.listens_for(Session, "before_flush")
 def receive_before_flush(session, flush_context, instances):
     for instance in session.dirty:
         if isinstance(instance, User):
             instance.updated_at = func.now()
+
+class Community(Base):
+    __tablename__ = 'community'
+    community_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    email = Column(String(255), ForeignKey('users.email'), nullable=False)
+    title = Column(String(255))
+    content = Column(String(255))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    user = relationship("User", back_populates="community")
+    comments = relationship("CommunityComment", back_populates="community", cascade="all, delete-orphan")
+    images = relationship("CommunityImage", back_populates="community", cascade="all, delete-orphan")
+
+class CommunityComment(Base):
+    __tablename__ = 'community_comment'
+    community_comment_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    community_id = Column(Integer, ForeignKey('community.community_id'), nullable=False)
+    email = Column(String(255), ForeignKey('users.email'), nullable=False)
+    content = Column(String(255))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    community = relationship("Community", back_populates="comments")
+    user = relationship("User", back_populates="community_comments")  # 수정된 부분
+    images = relationship("CommunityImage", back_populates="comment", cascade="all, delete-orphan")
+
+class CommunityImage(Base):
+    __tablename__ = 'community_image'
+    image_id = Column(Integer, primary_key=True, index=True ,autoincrement=True)
+    community_id = Column(Integer, ForeignKey('community.community_id'), nullable=True)
+    community_comment_id = Column(Integer, ForeignKey('community_comment.community_comment_id'), nullable=True)
+    image_name = Column(String(255))
+    community = relationship("Community", back_populates="images")
+    comment = relationship("CommunityComment", back_populates="images")
 
 Base.metadata.create_all(bind=engine)

@@ -11,7 +11,7 @@ from starlette.requests import Request as Requests
 from pydantic import BaseModel
 app = FastAPI()
 router = APIRouter()
-langserve_url = "http://localhost:8080/chain"
+langserve_url = "http://54.181.1.215:8080/chain"
 
 # Pydantic 모델들
 class TitleRequest(BaseModel):

@@ -9,7 +9,7 @@ from starlette.requests import Request
 
 app = FastAPI()
 router = APIRouter()
-langserve_url = "http://localhost:8080/redis"
+langserve_url = "http://54.181.1.215:8080/redis"
 
 
 class all_messagesResponse(BaseModel):

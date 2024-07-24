@@ -126,6 +126,22 @@ class Comment(BaseModel):
 class CheckComment(Comment):
     email: EmailStr
     comment_id: int
+    
+class Community(BaseModel):
+    email: EmailStr
+    title: str
+    content: str
+        
+class CheckCommunity(Community):
+    community_id : int
+    
+class CommunityComment(BaseModel):
+    community_id : int
+    content : str
+    
+class CheckCommunityComment(CommunityComment):
+    email: EmailStr
+    community_comment_id: int
 
 class ChangePassword(BaseModel):
     password: str
@@ -138,3 +154,8 @@ class Settings(BaseSettings):
 
     class Config:
         case_sensitive = True
+
+class Keywords(BaseModel):
+    likeyear: str
+    likecountry: str
+    likebusiness:str
