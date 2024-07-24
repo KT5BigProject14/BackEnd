@@ -73,7 +73,11 @@ async def email_by_gmail(request:Request, password:ChangePassword ,db: Session =
     if confirm_password:
         update_password(db, password,email=user.email)
     return HTTPException(status_code=status.HTTP_200_OK, detail="change password successful")
-
+@router.get("/keyword")
+def read_keyword(request: Request, db: Session = Depends(get_db)):
+    user = request.state.user
+    db_user_keyword = get_user_keyword(email=user.email, db=db)
+    return db_user_keyword
 
 # @router.get()
 @router.post("/keyword")

@@ -301,14 +301,14 @@ async def send_email(**kwargs):
     email_pw = settings.EMAIL_PW
     email_addr = settings.EMAIL_ADDR
     try:
-        yag = yagmail.SMTP({email_addr: "Retriever"}, email_pw)
+        yag = yagmail.SMTP({email_addr: "LoGO"}, email_pw)
         # https://myaccount.google.com/u/1/lesssecureapps
         # 추후에 html 파일로 바꿈
         with open('templates/smtp_template.html', 'r', encoding='utf-8') as file:
             html_template = file.read()
         html_content = html_template.format(verification_code=verification_code)
         contents = [html_content]
-        yag.send(mail, '[Retriever]이메일 인증을 위한 인증번호를 안내 드립니다.', contents)
+        yag.send(mail, '[LoGO]이메일 인증을 위한 인증번호를 안내 드립니다.', contents)
     except Exception as e:
         print(e)
         
@@ -318,12 +318,12 @@ async def send_new_password(**kwargs):
     email_pw = settings.EMAIL_PW
     email_addr = settings.EMAIL_ADDR
     try:
-        yag = yagmail.SMTP({email_addr: "Retriever"}, email_pw)
+        yag = yagmail.SMTP({email_addr: "LoGO"}, email_pw)
         with open('templates/smtp_password_template.html', 'r', encoding='utf-8') as file:
             html_template = file.read()
         html_content = html_template.format(new_password=new_password)
         contents = [html_content]
-        yag.send(mail, '[Retriever]새로운 비밀번호를 알려드립니다.', contents)
+        yag.send(mail, '[LoGO]새로운 비밀번호를 알려드립니다.', contents)
     except Exception as e:
         print(e)
         
