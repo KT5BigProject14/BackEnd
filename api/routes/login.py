@@ -51,7 +51,7 @@ GetCurrentUser = Annotated[User, Depends(get_current_user)]
 
 # oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-#
+#회원 가입
 @router.post("/signup")
 def create_user(user: UserBase, db: Session = Depends(get_db)):
     db_user = get_user(db, user.email)
@@ -62,6 +62,7 @@ def create_user(user: UserBase, db: Session = Depends(get_db)):
     create_user_db(db=db, user=user)
     return HTTPException(status_code=200,detail="signup success")
 
+# 일반 로그인 
 @router.post("/login")
 async def login_user(
     user : User,
@@ -77,22 +78,27 @@ async def login_user(
         
     access_token = jwt_service.create_access_token(data)
     refresh_token = jwt_service.create_refresh_token(data)
+    # access_token 프론트로 전달
     response = JSONResponse(content={"access_token":access_token, "type":"normal","role": user_id.role}, status_code=status.HTTP_200_OK)
+    # refresh_token 쿠키에 set
     response.set_cookie(
         key="refresh_token",
         value=refresh_token,
-        httponly=True,
+        httponly=True, # 프론트엔드에서 쿠키를 조작할 수 없음
         secure=False,  # HTTPS 사용 시에만 True로 설정, 로컬 테스트라 False로 설정
         samesite='Lax',  # samesite는 'None', 'Lax', 'Strict' 중 하나여야 합니다. , 'Strict', 'None'은 HTTPS에서만 작동
     )
     return response
 
+# 구글 로그인 uri 
+# 구글 redirect uri는 localhost일때 제외하고 https여야 함
 @router.get("/login/google")
 async def auth_google_login():
     return {
             "url": f"https://accounts.google.com/o/oauth2/auth?response_type=code&client_id={settings.GOOGLE_CLIENT_ID}&redirect_uri={settings.GOOGLE_REDIRECT_URI}&scope=openid%20profile%20email&access_type=offline"
     }
 
+# 구글이 리턴해준 params(code)를 쿼리에서 분리
 @router.get("/login/oauth2/code/google")
 async def auth_google(request: Request, response: Response, db: Session = Depends(get_db)):
     code = request.query_params.get('code')
@@ -107,11 +113,13 @@ async def auth_google(request: Request, response: Response, db: Session = Depend
         "redirect_uri": settings.GOOGLE_REDIRECT_URI,
         "grant_type": "authorization_code"
     }
+    # 구글 토큰 요청 
     token_response = requests.post(token_url, data=data)
     
     if token_response.status_code != 200:
         return {"error": "Failed to get access token", "details": token_response.text}
     
+    # response로 받아온 구글 토큰
     token_json = token_response.json()
     access_token = token_json.get("access_token")
     refresh_token = token_json.get("refresh_token")
@@ -119,6 +127,7 @@ async def auth_google(request: Request, response: Response, db: Session = Depend
     if not access_token:
         return {"error": "No access token received", "details": token_json}
     
+    # access_token을 활용해 로그인한 사용자 정보 받아오기
     user_info_response = requests.get(
         "https://www.googleapis.com/oauth2/v1/userinfo",
         headers={"Authorization": f"Bearer {access_token}"}
@@ -126,29 +135,36 @@ async def auth_google(request: Request, response: Response, db: Session = Depend
 
     if user_info_response.status_code != 200:
         return {"error": "Failed to fetch user info", "details": user_info_response.text}
-    
+    # 구글측에서 받은 유저 정보
     user_info = user_info_response.json()
     
+    # DB에서 user 조회
     db_user = get_user(db, user_info['email'])
+    # 유저가 없는 경우 새로운 유저 생성
     if not db_user:
         db_user = create_google_user(db=db, user=user_info['email'])
+    # 해당 아이디로 유저 정보 기입여부 확인
     db_user_info = get_user_info_db(db= db, user=user_info['email'] )
     type = "social"
+    # 유저 정보를 기입했다면 role은 user
     if db_user_info:
         data = {"email": str(user_info['email']),"type":type,"role": db_user.role}
+    # 아니라면 role은 guest로 제한적인 서비스 이용
     else:
         data = {"email": str(user_info['email']),"type":type, "role": db_user.role}
     
+    # 로그인된 아이디 바탕으로 새롭게 jwt 토큰 생성
     access_token = jwt_service.create_access_token(data)
     refresh_token = jwt_service.create_refresh_token(data)
     
     # 쿠키 설정
 
     
-    # 리디렉션 응답
+    # 프론트로 리디렉션 응답 -> 쿼리에 필요 정보를 담아서 
     # 이렇게 하면 query에 토큰값이랑 이메일 정보가 노출되어 보안적으로는 redis에 이 값들을 저장하고
     # 프론트에서 redirect 될면서 바로 redis값을 찾는 요청을 보내 return 해주는게 더 안전한 방법이긴 함
     # 아래와 같이 보내는 경우에는 query 값으로 sessionStorage에 저장한 후 바로 메인페이지로 redirect 해야함
+    
     redirect_url = f"https://ailogo.world/google/login?token={access_token}&role={db_user.role}&type={type}"
     response = RedirectResponse(url=redirect_url)
     response.set_cookie(
@@ -161,7 +177,8 @@ async def auth_google(request: Request, response: Response, db: Session = Depend
     )
     return response
 
-
+# 네이버 로그인
+# 세부로직은 google과 동일
 @router.get("/login/naver")
 async def auth_naver_login():
     return {
@@ -252,6 +269,7 @@ async def email_by_gmail(request: Request, mail: SendEmail, background_tasks: Ba
         create_email_auth(db,mail,verify_code = verification_code)
     return MessageOk()
 
+# 비밀번호 찾기에서 사용되는 이메일 인증 코드 
 @router.post("/find/password/send/email/code")
 async def find_password_by_email(request: Request, mail: SendEmail, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     # email_auth DB조회
@@ -284,10 +302,11 @@ async def send_new_password(request: Request, mail: SendEmail, background_tasks:
     characters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*"
     new_password = ''.join(random.choice(characters) for _ in range(10))
     update_new_random_password(mail,new_password,db)
+    # 비동기 작업을 통해 메일 보내는 시간 단축
     background_tasks.add_task(send_new_password, mail = mail.email,new_password=new_password)
     return HTTPException(status_code=status.HTTP_200_OK, detail="password change")
 
-
+# 실제 이메일 전송 함수
 async def send_email(**kwargs):
     mail = kwargs.get("mail", None)
     verification_code = kwargs.get("verification_code", None)
@@ -296,7 +315,6 @@ async def send_email(**kwargs):
     try:
         yag = yagmail.SMTP({email_addr: "LoGO"}, email_pw)
         # https://myaccount.google.com/u/1/lesssecureapps
-        # 추후에 html 파일로 바꿈
         with open('templates/smtp_template.html', 'r', encoding='utf-8') as file:
             html_template = file.read()
         html_content = html_template.format(verification_code=verification_code)
@@ -304,7 +322,8 @@ async def send_email(**kwargs):
         yag.send(mail, '[LoGO]이메일 인증을 위한 인증번호를 안내 드립니다.', contents)
     except Exception as e:
         print(e)
-        
+
+# 새로운 비밀번호를 이메일로 보내는 함수        
 async def send_new_password(**kwargs):
     mail = kwargs.get("mail", None)
     new_password = kwargs.get("new_password", None)
@@ -319,7 +338,8 @@ async def send_new_password(**kwargs):
         yag.send(mail, '[LoGO]새로운 비밀번호를 알려드립니다.', contents)
     except Exception as e:
         print(e)
-        
+
+# 로그아웃         
 @router.post("/logout")
 async def logout_user(request: Request, response: Response):
     # `refresh_token` 쿠키 삭제
@@ -327,6 +347,7 @@ async def logout_user(request: Request, response: Response):
     
     # 성공적으로 로그아웃되었음을 알리는 JSON 응답
     return {"message": "Logout successful"}
+
 
 @router.post("/users/signup/admin")
 def create_user(user: UserBase, db: Session = Depends(get_db)):
