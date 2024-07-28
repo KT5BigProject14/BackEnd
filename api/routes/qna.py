@@ -66,38 +66,52 @@ GetCurrentUser = Annotated[User, Depends(get_current_user)]
 @router.post("/upload")
 async def upload_qna(request: Request,title: Annotated[str, Form()], content: Annotated[str, Form()], images: List[UploadFile] = File([]), db: Session = Depends(get_db)):
     
-    qna_data = {"email": request.state.user.email, "title": title, "content": content}
-    qna = Qna(**qna_data)  # Qna 모델 인스턴스 생성
-    # qna 글 저장 return 값은 해당글 정보
-    created_qna = create_qna(db=db, qna=qna)
-    image_filenames = []
-    # 여러 파일이 왔을 때 for문으로 이미지 저장
-    # created_qna에서 qna_id를 넣어 나중에 조회할때 선택한 qna 글에 대한 모든 이미지를 조회하기 위해 사용
-    for image in images:
-        filename = await upload_image(image)
-        create_qna_image(db=db, image=filename, qna=created_qna)
-        image_filenames.append(filename)
-    return HTTPException(status_code=status.HTTP_200_OK, detail="upload successful" )
+    try:
+        qna_data = {"email": request.state.user.email, "title": title, "content": content}
+        qna = Qna(**qna_data)  # Qna 모델 인스턴스 생성
 
+        # qna 글 저장 return 값은 해당글 정보
+        created_qna = create_qna(db=db, qna=qna)
+        image_filenames = []
+
+        # 여러 파일이 왔을 때 for문으로 이미지 저장
+        # created_qna에서 qna_id를 넣어 나중에 조회할때 선택한 qna 글에 대한 모든 이미지를 조회하기 위해 사용
+        for image in images:
+            # 로직상 글이 생성되어야 이미지 업로드 가능하기 때문에 프론트에서 업로드되는 파일 확장자가 한번 검증을 거친다는 가정하에 설계 
+            # 이미지 업로드 중 허용되지 않는 파일 형식은 업로드 불가능
+            filename = await upload_image(image)
+            create_qna_image(db=db, image=filename, qna=created_qna)
+            image_filenames.append(filename)
+
+        return {"status_code": status.HTTP_200_OK, "detail": "Upload successful"}
+
+    except Exception as e:
+        db.rollback()  # db rollback
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    finally:
+        db.close()  
+
+# 모든 qna를 가져오는 api
 @router.get("/load/all/qna")
 async def load_user_all_qna(request: Request, db: Session = Depends(get_db)):
     user = request.state.user
+    # user일땐 user의 qna와 admin의 qna만 가져옴
     if user.role == "user":
         return user_all_qna(db, user.email)
+    # admin인 경우 모든 user의 qna를 가져옴
     elif user.role =="admin":
         return admin_all_qna(db)
     else:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="you are not authorized")
-# @router.get("/admin_all_qna")
-# async def load_admin_all_qna(db: Session = Depends(get_db)):
-#     return admin_all_qna(db)
-
+    
+# user가 선택한 qna를 가져오는 api
 @router.get("/load_qna/{qna_id}")
 async def load_qna(qna_id: int, db: Session = Depends(get_db)):
     result = get_qna(db, qna_id)
     comments = get_comment(db=db, qna_id=qna_id)
     qna_images = []
     
+    # 이미지를 base64인코딩 하여 json으로 전송
     if result['qna_images']:
         for image_name in result['qna_images']:
             image_path = os.path.join("./img", image_name)
@@ -106,7 +120,7 @@ async def load_qna(qna_id: int, db: Session = Depends(get_db)):
                 qna_images.append({
                     image_name: encoded_image,
                 })
-    
+    # qna 관련 데이터
     qna_dict = {
         "title": result['qna'].title,
         "content": result['qna'].content,
@@ -114,7 +128,7 @@ async def load_qna(qna_id: int, db: Session = Depends(get_db)):
         "qna_id": result['qna'].qna_id,
         "created_at": result['qna'].created_at.isoformat()
     }
-    
+    # 댓글 관련 데이터
     comment_response = [
         {
             "comment_id": comment.comment_id,
@@ -125,7 +139,7 @@ async def load_qna(qna_id: int, db: Session = Depends(get_db)):
         }
         for comment in comments
     ]
-    
+    # 최종적으로 프론트로 보낼 딕셔너리
     response_content = {
         "result": {
             "qna": qna_dict,
@@ -135,6 +149,7 @@ async def load_qna(qna_id: int, db: Session = Depends(get_db)):
     }
     return JSONResponse(content=response_content)
 
+# 글 수정
 @router.put("/edit")
 async def update_qna(
     request:Request,
@@ -146,6 +161,7 @@ async def update_qna(
     db: Session = Depends(get_db)
 ):
     user = request.state.user
+    # 글을 쓴 유저와 현재 로그인 된 유저가 같아야 수정 가능
     if user.email == email:
         # QnA 데이터 처리 로직
         qna_data = {"qna_id": qna_id, "email": email, "title": title, "content": content}
@@ -153,6 +169,7 @@ async def update_qna(
         result = db_update_qna(qna=qna, db=db)
         
         # 이미지 처리 로직
+        # 모든 이미지를 삭제하고 다시 삽입
         deleted_images = delete_img(qna, db)
         if deleted_images:
             for deleted_imgs in deleted_images:
@@ -169,7 +186,8 @@ async def update_qna(
         return {"qna": qna, "img": image_filenames}
     else:
         raise HTTPException(status_code=400, detail="You are not the writer")
-    
+
+# 이미지 삭제 api    
 @router.delete("/delete")
 async def delete_qna(qna: CheckQna ,request:Request ,db: Session = Depends(get_db)):
     user = request.state.user
@@ -184,12 +202,14 @@ async def delete_qna(qna: CheckQna ,request:Request ,db: Session = Depends(get_d
     else:
         raise HTTPException(status_code=400, detail="you are not writer")  
 
+# 댓글 업로드
 @router.post("/upload/comment")
 async def upload_qna(request: Request, comment: Comment,db: Session = Depends(get_db)):
     user = request.state.user
     comment = create_comment(db=db, comment = comment, email = user.email )
     return comment
 
+# 댓글 수정 api
 @router.put("/update/comment")
 async def load_qna(request: Request, comment: CheckComment  ,db: Session = Depends(get_db)):
     user = request.state.user
@@ -198,7 +218,8 @@ async def load_qna(request: Request, comment: CheckComment  ,db: Session = Depen
         return result   
     else:
         raise HTTPException(status_code=400, detail="you are not writer")
-             
+
+#  글 삭제 api           
 @router.delete("/delete/comment")
 async def load_qna(comment: CheckComment ,request: Request ,db: Session = Depends(get_db)):
     user = request.state.user

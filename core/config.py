@@ -11,7 +11,7 @@ from pydantic import (
     model_validator,
 )
 
-
+# .env에 있는 [] 리스트 안에 있는 허용 cors 들을 사용할수 있게 분리하는 함수
 def parse_cors(v: Any) -> list[str] | str:
     if isinstance(v, str) and not v.startswith("["):
         return [i.strip() for i in v.split(",")]
@@ -19,7 +19,7 @@ def parse_cors(v: Any) -> list[str] | str:
         return v
     raise ValueError(v)
 
-
+# .env의 값들의 형식을 정의
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env", env_ignore_empty=True, extra="ignore"
@@ -49,6 +49,7 @@ class Settings(BaseSettings):
     NAVER_CALLBACK_URI : str
     LANGSERVE_URL: str
 
+    # 보안적으로 중요한 설정값을 기본으로 두지 않게 하는 함수
     def _check_default_secret(self, var_name: str, value: str | None) -> None:
         if value == "changethis":
             message = (

@@ -41,12 +41,17 @@ app = FastAPI(
     generate_unique_id_function=custom_generate_unique_id,
 )
 
+# deps에서 정의한 JWT
 jwt_service = JWTService(JWTEncoder(), JWTDecoder(), settings.ALGORITHM, settings.SECRET_KEY,
                          settings.ACCESS_TOKEN_EXPIRE_TIME, settings.REFRESH_TOKEN_EXPIRE_TIME)
+
+# 위에서 만든 JWT를 주입받은 jwt 인증 객체
 jwt_authentication = JWTAuthentication(jwt_service)
 
+# jwt 인증을 위한 미들웨어
 @app.middleware("http")
 async def jwt_middleware(request: Request, call_next):
+    # 아래 url로 오는 요청은 pass(로그인 요청 등)
     if (
         request.url.path.startswith("/docs") or
         request.url.path.startswith("/retriever/user") or
@@ -59,11 +64,16 @@ async def jwt_middleware(request: Request, call_next):
     # 예외 처리 대신 기본적으로 인증을 시도합니다.
     try:
         db = next(get_db())
+        # 인증을 완료하고 return 된 값 user  변수에 추가
         user = await jwt_authentication.authenticate_user(request, db)
+        # user 가 있는 경우 
         if user:
+            # user를 request.state.user에 넣음
             request.state.user = user
+            # 다음 단계로 진행
             response = await call_next(request)
         else:
+            # 없는 경우 에러
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Only admin users are allowed to access this resource.",

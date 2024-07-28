@@ -87,10 +87,9 @@ async def load_all_community(request: Request, db: Session = Depends(get_db)):
     return all_community
 
 @router.get("/load/{community_id}")
-async def load_community(community_id: int, db: Session = Depends(get_db)):
-    result = get_community(db, community_id)
-    community_comments = get_community_comment(
-        db=db, community_id=community_id)
+async def load_community(request: Request, community_id: int, db: Session = Depends(get_db)):
+    result = get_community(db, community_id, email = request.state.user.email)
+    community_comments = get_community_comment(db=db, community_id=community_id,email = request.state.user.email)
     qna_images = []
 
     if result['community_images']:
@@ -102,23 +101,14 @@ async def load_community(community_id: int, db: Session = Depends(get_db)):
                     image_name: encoded_image,
                 })
 
-    community = result["community"]
-
-    if community:
-        user = community.user
-        if user and user.user_info:
-            corporation = user.user_info.corporation
-        else:
-            corporation = None
-    else:
-        corporation = None
-
     community_dict = {
         "title": result['community'].title,
         "content": result['community'].content,
-        "email": corporation,
+        "email": result['community'].email,
         "community_id": result['community'].community_id,
-        "created_at": result['community'].created_at.isoformat()
+        "created_at": result['community'].created_at.isoformat(),
+        "corporation": result['community'].corporation,
+        "is_my_post" : result['community'].is_my_post
     }
 
     community_comment_response = [
@@ -127,7 +117,10 @@ async def load_community(community_id: int, db: Session = Depends(get_db)):
             "content": community_comment.content,
             "created_at": community_comment.created_at.isoformat(),
             "qna_id": community_comment.community_id,
-            "email": community_comment.email
+            "email": community_comment.email,
+            "corporation": community_comment.corporation,
+            "is_my_post": community_comment.is_my_post
+            
         }
         for community_comment in community_comments
     ]

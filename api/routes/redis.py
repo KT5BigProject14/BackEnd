@@ -43,8 +43,9 @@ def extract_and_sort_messages(messages):
 
     return result
 
-
-@router.get("/redis/all/messages", response_model=all_messagesResponse)
+# redis에 저장된 모든 메세지의 session id와 마지막 글 가져오기
+# redis는 langchain에서 connect하여 다루기 때문에 api 요청으로 받아옴 
+@router.get("/all/messages", response_model=all_messagesResponse)
 async def get_all_messages_for_user(request: Request):
     user = request.state.user
     async with httpx.AsyncClient() as client:
@@ -74,7 +75,8 @@ def remove_timestamps(messages):
     return [re.sub(r"^\d{4}[\.-]\d{2}[\.-]\d{2} \d{2}:\d{2}:\d{2} - ", "", message) for message in messages]
 
 
-@router.get("/redis/messages/{session_id}")
+# 유저가 선택한 메세지 모든 대화 내용 가져오기 
+@router.get("/messages/{session_id}")
 async def get_messages_for_user(request: Request, session_id: str, start: int = 0, end: int = -1):
     try:
         user = request.state.user

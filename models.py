@@ -29,7 +29,7 @@ class User(Base):
     docs = relationship("Docs", back_populates="user", cascade="all, delete-orphan")
     keywords = relationship("Keyword", back_populates="user", cascade="all, delete-orphan")
     community = relationship("Community", back_populates="user", cascade="all, delete-orphan")
-    community_comments = relationship("CommunityComment", back_populates="user", cascade="all, delete-orphan")  # 수정된 부분
+    community_comments = relationship("CommunityComment", back_populates="user", cascade="all, delete-orphan") 
 
 class UserInfo(Base):
     __tablename__ = 'user_info'

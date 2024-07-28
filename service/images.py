@@ -90,12 +90,14 @@ def upload_to_s3(file: io.BytesIO, bucket_name: str, file_name: str) -> None:
         file_name,
         ExtraArgs={"ContentType": "image/jpeg"},
     )
-    
+
+# base64 인코딩    
 def encode_image_to_base64(image_path: str) -> str:
     with open(image_path, "rb") as image_file:
         encoded_string = base64.b64encode(image_file.read()).decode("utf-8")
     return encoded_string
 
+# 이미지 파일 삭제
 def delete_file_from_filesystem(file_path: str):
     if os.path.isfile(file_path):
         os.remove(file_path)
