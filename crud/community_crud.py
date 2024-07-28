@@ -24,23 +24,24 @@ def create_community_image(db: Session, image: str, community: CheckCommunity):
     db.refresh(community_image)
     return community_image
 
-# 모든 커뮤니티 읽어오기
 def read_all_community(db: Session):
     # 모든 커뮤니티 게시글 조회
     all_community = db.query(Community).all()
-
-    # 각 커뮤니티 객체에 corporation 정보를 추가
-    for community in all_community:
+    
+    # 각 커뮤니티 객체에 corporation 및 is_my_post 정보를 추가
+    for community in  all_community:
         user = community.user
-        corporation = user.user_info.corporation if user and user.user_info else None
-        community.email = corporation
-
+        community.corporation = user.user_info.corporation if user and user.user_info else None
+    
+    # 모든 커뮤니티 게시글 반환
     return all_community
 
 # 유저가 선택한 커뮤니티 가져오기
-def get_community(db: Session, community_id: int):
-    community = db.query(Community).filter(
-        Community.community_id == community_id).first()
+def get_community(db: Session, community_id: int, email: EmailStr):
+    community = db.query(Community).filter(Community.community_id == community_id).first()
+    user = community.user
+    community.corporation = user.user_info.corporation if user and user.user_info else None
+    community.is_my_post = True if community.email == email else False
     community_image = db.query(CommunityImage.image_name).filter(
         CommunityImage.community_id == community_id).all()
     community_image = [name[0] for name in community_image]
@@ -87,8 +88,12 @@ def create_community_comment(community_comment: CommunityComment, email: EmailSt
     return new_comment
 
 # 커뮤니티 댓글 가져오기
-def get_community_comment(community_id: int, db: Session):
-    return db.query(CommunityComment).filter(CommunityComment.community_id == community_id).all()
+def get_community_comment(community_id: int, db: Session, email: EmailStr):
+    all_community_comment = db.query(CommunityComment).filter(CommunityComment.community_id == community_id).all()
+    for comment in all_community_comment:
+        comment.corporation = comment.user.user_info.corporation if comment.user and comment.user.user_info else None
+        comment.is_my_post = True if comment.email == email else False
+    return all_community_comment
 
 # 커뮤니티 댓글 수정
 def update_community_comment(comment: CheckCommunityComment, db: Session):
