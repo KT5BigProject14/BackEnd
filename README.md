@@ -24,22 +24,16 @@
    git clone https://github.com/yourusername/yourproject.git
    cd yourproject
 2. **가상 환경 생성 및 활성화:**
-<br>
 python3 -m venv venv
-<br>
 source venv/bin/activate  # 윈도우의 경우 `venv\Scripts\activate`
 3.**필요한 패키지 설치:**
-   <br>
 pip install -r requirements.txt
 
 ## 구성
 1. 환경 파일생성 및 변수 설정
-<br>
    touch .env
    - .env 파일 안에 DB 및 Redis 구성 설정
-   <br>
    DATABASE_URL=mysql+pymysql://username:password@localhost/dbname
-<br>
    REDIS_URL=redis://localhost:6379/0
 3. MySQL 및 Redis 실행
    - MySQL 서버를 시작하고 프로젝트용 데이터베이스를 만듭니다.
@@ -47,10 +41,8 @@ pip install -r requirements.txt
 
 ## 데이터베이스 마이그레이션
 1. Alembic 초기화 (초기화되 않은 경우):
-<br>
   alembic init alembic
 2. 'alembic.ini' 파일에 데이터베이스 URL 설정:
-<br>
   sqlalchemy.url = mysql+pymysql://username:password속
    
 
