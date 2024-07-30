@@ -9,15 +9,10 @@
 3. [구성](#구성)
 4. [데이터베이스 마이그레이션](#데이터베이스-마이그레이션)
 5. [애플리케이션 실행](#애플리케이션-실행)
-6. [프로젝트 구조](#프로젝트-구조)
-7. [사용법](#사용법)
-8. [엔드포인트](#엔드포인트)
-9. [기여](#기여)
-10. [라이선스](#라이선스)
 
 ## 필수 조건
 
-- Python 3.8+
+- Python 3.11
 - MySQL 5.7+
 - Redis
 - Docker (선택 사항, 컨테이너 사용 시)
@@ -28,3 +23,36 @@
    ```sh
    git clone https://github.com/yourusername/yourproject.git
    cd yourproject
+2. **가상 환경 생성 및 활성화:**
+python3 -m venv venv
+source venv/bin/activate  # 윈도우의 경우 `venv\Scripts\activate`
+3.**필요한 패키지 설치:**
+pip install -r requirements.txt
+
+## 구성
+1. 환경 파일생성 및 변수 설정
+   touch .env
+   - .env 파일 안에 DB 및 Redis 구성 설정
+   DATABASE_URL=mysql+pymysql://username:password@localhost/dbname
+   REDIS_URL=redis://localhost:6379/0
+2. MySQL 및 Redis 실행
+   - MySQL 서버를 시작하고 프로젝트용 데이터베이스를 만듭니다.
+   - Redis 서버를 시작합니다.
+
+## 데이터베이스 마이그레이션
+1. Alembic 초기화 (초기화되 않은 경우):
+  alembic init alembic
+2. 'alembic.ini' 파일에 데이터베이스 URL 설정:
+  sqlalchemy.url = mysql+pymysql://username:password@localhost/dbname
+3. 새로운 마이그레이션 생성:
+   alembic revision --autogenerate -m "Initial migration"
+4. 마이그레이션 적용
+   alembic upgrade head
+
+## 애플리케이션 실행
+1. FASTAI 애플리케이션 실행
+   uvicorn app.main:app --reload
+2. swagger로 api 확인 및 api 테스트
+   localhost:3000/docs 혹은 127.0.0.1:3000/docs
+   
+
