@@ -16,20 +16,3 @@ COPY . /app
 EXPOSE 8000
 # 컨테이너 실행 시 명령어 설정
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
-# CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--ssl-keyfile", "/etc/ssl/private/ssl.key", "--ssl-certfile", "/etc/ssl/certs/ssl.crt"]
-
-# FROM tiangolo/uvicorn-gunicorn-starlette:python3.11-slim
-
-# RUN     
-
-# WORKDIR /app
-
-# COPY ./requirements.txt /app/requirements.txt
- 
-# RUN pip install --no-cache-dir --upgrade -r /app/requirements.txt
- 
-# COPY ./app /app
-
-# EXPOSE 8000
-
-# CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

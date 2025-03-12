@@ -78,8 +78,8 @@ def convert_image_to_bytes(image: Image) -> io.BytesIO:
 # AWS SDK boto3의 client
 s3_client = client(
     "s3",
-    aws_access_key_id=settings.AWS_ACCESS_KEY, # 본인 소유의 키를 입력
-    aws_secret_access_key=settings.AWS_SECRET_KEY, # 본인 소유의 키를 입력
+    aws_access_key_id=settings.AWS_ACCESS_KEY, 
+    aws_secret_access_key=settings.AWS_SECRET_KEY,
     region_name=settings.REGIONE_NAME,
 )
 # S3에 업로드
@@ -90,12 +90,14 @@ def upload_to_s3(file: io.BytesIO, bucket_name: str, file_name: str) -> None:
         file_name,
         ExtraArgs={"ContentType": "image/jpeg"},
     )
-    
+
+# base64 인코딩    
 def encode_image_to_base64(image_path: str) -> str:
     with open(image_path, "rb") as image_file:
         encoded_string = base64.b64encode(image_file.read()).decode("utf-8")
     return encoded_string
 
+# 이미지 파일 삭제
 def delete_file_from_filesystem(file_path: str):
     if os.path.isfile(file_path):
         os.remove(file_path)

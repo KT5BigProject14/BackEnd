@@ -6,10 +6,10 @@ import httpx
 from datetime import datetime
 import re
 from starlette.requests import Request
-
+from core.config import settings
 app = FastAPI()
 router = APIRouter()
-langserve_url = "http://54.181.1.215:8080/redis"
+langserve_url = settings.LANGSERVE_URL
 
 
 class all_messagesResponse(BaseModel):
@@ -43,14 +43,15 @@ def extract_and_sort_messages(messages):
 
     return result
 
-
+# redis에 저장된 모든 메세지의 session id와 마지막 글 가져오기
+# redis는 langchain에서 connect하여 다루기 때문에 api 요청으로 받아옴 
 @router.get("/all/messages", response_model=all_messagesResponse)
 async def get_all_messages_for_user(request: Request):
     user = request.state.user
     async with httpx.AsyncClient() as client:
         try:
             response = await client.get(
-                f"{langserve_url}/all_messages", params={"user_email": user.email}
+                f"{langserve_url}/redis/all_messages", params={"user_email": user.email}
             )
             response.raise_for_status()
             result = response.json()
@@ -74,13 +75,14 @@ def remove_timestamps(messages):
     return [re.sub(r"^\d{4}[\.-]\d{2}[\.-]\d{2} \d{2}:\d{2}:\d{2} - ", "", message) for message in messages]
 
 
+# 유저가 선택한 메세지 모든 대화 내용 가져오기 
 @router.get("/messages/{session_id}")
 async def get_messages_for_user(request: Request, session_id: str, start: int = 0, end: int = -1):
     try:
         user = request.state.user
         async with httpx.AsyncClient() as client:
             response = await client.get(
-                f"{langserve_url}/messages/{user.email}/{session_id}",
+                f"{langserve_url}/redis/messages/{user.email}/{session_id}",
                 params={"start": start, "end": end},
                 timeout=10.0
             )

@@ -9,9 +9,10 @@ import uuid
 from typing import Optional
 from starlette.requests import Request as Requests
 from pydantic import BaseModel
+from core.config import settings
 app = FastAPI()
 router = APIRouter()
-langserve_url = "http://54.181.1.215:8080/chain"
+langserve_url = settings.LANGSERVE_URL
 
 # Pydantic 모델들
 class TitleRequest(BaseModel):
@@ -50,7 +51,7 @@ async def chat(request: Requests, chat_request: ChatRequest):
         # 모델 서버로 요청 보내기
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                langserve_url + "/chat",
+                langserve_url + "/chain/chat",
                 json={'user_email': user_email,
                       'session_id': session_id,
                       'question': question},
@@ -78,7 +79,7 @@ async def generate_search_title(title_request: TitleRequest):
         # 첫 번째 서버로 요청 보내기
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                f"{langserve_url}/generate/title", json={"request": title_request.question}
+                f"{langserve_url}/chain/generate/title", json={"request": title_request.question}
             )
 
         response.raise_for_status()
@@ -101,12 +102,12 @@ async def generate_search_title(title_request: TitleRequest):
 # 텍스트 생성 엔드포인트
 @router.post("/text", response_model=TextResponse)
 async def generate_search_text(request: Requests, text_request: TextRequest, db: Session = Depends(get_db)):
-    # try:
+    try:
         user = request.state.user
         # 랭서브로 요청 보내기
         async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(
-                f"{langserve_url}/generate/text", json={"title": text_request.title}
+                f"{langserve_url}/chain/generate/text", json={"title": text_request.title}
             )
 
         response.raise_for_status()
@@ -130,11 +131,8 @@ async def generate_search_text(request: Requests, text_request: TextRequest, db:
 
         # docs_id 포함하여 반환
         return {"docs_id": new_doc.docs_id, "text": result['response']}
-    # except httpx.RequestError as e:
-    #     raise HTTPException(status_code=500, detail=f"Request failed: {e}")
-    # except Exception as e:
-    #     db.rollback()  # 데이터베이스 변경 사항 롤백
-    #     raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {e}")
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=500, detail=f"Request failed: {e}")
 
 # 좋아요 저장 엔드포인트
 @router.post("/like")

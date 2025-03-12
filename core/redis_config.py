@@ -4,6 +4,7 @@ import redis
 
 load_dotenv()
 
+# 레디스 연결 
 def get_redis_connection():
     REDIS_HOST = os.getenv("REDIS_HOST")
     REDIS_PORT = int(os.getenv("REDIS_PORT"))

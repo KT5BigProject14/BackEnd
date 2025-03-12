@@ -4,9 +4,14 @@ from schemas import UserCreate , UserInfoCreate, User, UserBase, SendEmail, Chec
 from passlib.context import CryptContext
 from fastapi import FastAPI, Depends, HTTPException
 from pydantic import EmailStr
+
+# bcrypt 암호화를 다루는 변수
 bcrypt_context = CryptContext(schemes=['bcrypt'], deprecated = 'auto')
 
+
+# 유저 생성
 def create_user_db(db: Session, user: UserBase):
+    # 비밀번호 해시화 하여서 db에 저장
     hashed_password = bcrypt_context.hash(user.password)
     
     db_user = UserModel(email=user.email, password=hashed_password)
@@ -15,6 +20,7 @@ def create_user_db(db: Session, user: UserBase):
     db.refresh(db_user)
     return db_user
 
+# 구글 유저 생성
 def create_google_user(db:Session, user: str):
     db_user = UserModel(email=user)
     db.add(db_user)
@@ -23,7 +29,7 @@ def create_google_user(db:Session, user: str):
     return db_user
     
 
-
+# 유저 정보 db 생성
 def create_user_info_db(db: Session, user_info: UserInfoBase):
     db_user_info = UserInfoModel(email = user_info.email, corporation = user_info.corporation, business_number = user_info.business_number, 
                                  position =user_info.position, phone = user_info.phone, user_name = user_info.user_name)
@@ -32,14 +38,15 @@ def create_user_info_db(db: Session, user_info: UserInfoBase):
     db.refresh(db_user_info)
     return db_user_info
 
-
+# 유저 조회 
 def get_user(db: Session, email: str):
     return db.query(UserModel).filter(UserModel.email == email).first()
 
-
+# 모든 유저 조회
 def get_users(db: Session, skip: int = 0, limit: int = 10):
     return db.query(UserModel).offset(skip).limit(limit).all()
 
+# 유효한 유저인지 판별
 def authenticate_user(db: Session, user:User):
     find_user = db.query(UserModel).filter(UserModel.email == user.email).first()
     if not find_user:
@@ -55,10 +62,12 @@ def authenticate_user(db: Session, user:User):
     # find_user
     return find_user  # 인증된 사용자 객체 반환
 
+# 이메일 인증 유저 조회
 def email_auth(db: Session, user: CheckEmail):
     find_user = db.query(EmailAuth).filter(EmailAuth.email == user.email).first()
     return find_user
 
+# 이메일 인증 번호 수정
 def update_email_auth(db: Session, user: CheckEmail, verify_code : str):
     email_auth_db = db.query(EmailAuth).filter(EmailAuth.email == user.email).first()
     if email_auth_db is None:
@@ -68,6 +77,7 @@ def update_email_auth(db: Session, user: CheckEmail, verify_code : str):
     db.refresh(email_auth_db)
     return True
 
+# 이메일 인증 생성
 def create_email_auth(db: Session, user: CheckEmail, verify_code : str):
     email_auth_db = EmailAuth(email=user.email,verify_number = verify_code )
     db.add(email_auth_db)
@@ -75,6 +85,7 @@ def create_email_auth(db: Session, user: CheckEmail, verify_code : str):
     db.refresh(email_auth_db)
     return True
 
+# 이메일 인증유저 활성화
 def update_is_active(db: Session, user: UserCreate):
     email_auth_db = db.query(EmailAuth).filter(EmailAuth.email == user.email).first()
     if email_auth_db is None:
@@ -83,6 +94,7 @@ def update_is_active(db: Session, user: UserCreate):
     db.commit()
     db.refresh(email_auth_db)
 
+# 새로운 비밀번호 생성하여 저장
 def update_new_random_password(email: SendEmail, new_password: str, db: Session):
     try:
         # 새 패스워드를 해시
@@ -107,6 +119,7 @@ def update_new_random_password(email: SendEmail, new_password: str, db: Session)
         db.rollback()  # 에러 발생 시 롤백
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
 
+# 비밀번호 수정
 def update_password(db:Session, password:ChangePassword, email=EmailStr):
     hashed_password = bcrypt_context.hash(password.new_password)
     db_user = db.query(UserModel).filter(UserModel.email == email).first()
